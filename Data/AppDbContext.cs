@@ -1,0 +1,16 @@
+﻿using layZTickets.Components.Pages;
+using layZTickets.DataSets;
+using Microsoft.EntityFrameworkCore;
+
+namespace layZTickets.Data;
+
+public class AppDbContext : DbContext
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options)
+        : base(options)
+    {
+    }
+
+    public DbSet<Ticket> Tickets => Set<Ticket>();
+    public DbSet<TicketComment> TicketComments => Set<TicketComment>();
+}
