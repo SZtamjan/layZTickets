@@ -1,7 +1,98 @@
-﻿@page "/DisplayTickets"
+@page "/DisplayTickets"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using layZTickets.Data
+@using layZTickets.DataSets
+@inject IDbContextFactory<AppDbContext> DbContextFactory
 
-<h3>Tickets</h3>
+<PageTitle>Tickets</PageTitle>
+
+<div class="tickets-page">
+    <header class="tickets-header">
+        <div>
+            <p class="ticket-create-eyebrow">Ostatnie zgłoszenia</p>
+            <h1>Tickets</h1>
+        </div>
+
+        <a class="btn btn-primary" href="CreateTicket">Utwórz ticket</a>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+    }
+    else if (isLoading)
+    {
+        <p role="status">Ładowanie ticketów...</p>
+    }
+    else if (tickets.Count == 0)
+    {
+        <div class="tickets-empty">
+            <h2>Brak ticketów</h2>
+            <p>Po utworzeniu pierwszego zgłoszenia pojawi się ono na tej liście.</p>
+        </div>
+    }
+    else
+    {
+        <div class="tickets-table-wrap">
+            <table class="table tickets-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Tytuł</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Priorytet</th>
+                        <th scope="col">Zgłaszający</th>
+                        <th scope="col">Utworzono</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var ticket in tickets)
+                    {
+                        <tr>
+                            <td>
+                                <a class="ticket-title-link" href="@($"DisplayTicket/{ticket.Id}")">
+                                    @ticket.Title
+                                </a>
+                            </td>
+                            <td>@ticket.Status</td>
+                            <td>@ticket.Priority</td>
+                            <td>@ticket.CreatedByUserId</td>
+                            <td>@ticket.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
 
 @code {
+    private List<Ticket> tickets = new();
+    private bool isLoading = true;
+    private string? errorMessage;
 
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+            await dbContext.Database.EnsureCreatedAsync();
+
+            tickets = await dbContext.Tickets
+                .AsNoTracking()
+                .OrderByDescending(ticket => ticket.CreatedAt)
+                .Take(10)
+                .ToListAsync();
+        }
+        catch (Exception exception)
+        {
+            errorMessage = $"Nie udało się pobrać ticketów: {exception.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
 }

@@ -1,0 +1,157 @@
+@page "/CreateTicket"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using layZTickets.Data
+@using layZTickets.DataSets
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+
+<PageTitle>Create Ticket</PageTitle>
+
+<div class="ticket-create-page">
+    <header class="ticket-create-header">
+        <div>
+            <p class="ticket-create-eyebrow">Nowe zgłoszenie</p>
+            <h1>Utwórz ticket</h1>
+        </div>
+
+        <a class="btn btn-outline-secondary" href="DisplayTickets">Lista ticketów</a>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="alert alert-success" role="status">
+            @successMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+    }
+
+    <EditForm Model="ticketDraft" OnSubmit="CreateTicketAsync" FormName="create-ticket-form">
+        <div class="ticket-form-grid">
+            <section class="ticket-form-main" aria-label="Szczegóły ticketu">
+                <div class="mb-3">
+                    <label for="ticket-title" class="form-label">Tytuł</label>
+                    <InputText id="ticket-title" class="form-control" @bind-Value="ticketDraft.Title" />
+                    @if (submitted && string.IsNullOrWhiteSpace(ticketDraft.Title))
+                    {
+                        <div class="validation-message">Podaj tytuł zgłoszenia.</div>
+                    }
+                </div>
+
+                <div class="mb-3">
+                    <label for="ticket-description" class="form-label">Opis</label>
+                    <InputTextArea id="ticket-description" class="form-control ticket-description" @bind-Value="ticketDraft.Description" />
+                    @if (submitted && string.IsNullOrWhiteSpace(ticketDraft.Description))
+                    {
+                        <div class="validation-message">Opisz, czego dotyczy ticket.</div>
+                    }
+                </div>
+
+                <div class="mb-0">
+                    <label for="created-by" class="form-label">Zgłaszający</label>
+                    <InputText id="created-by" class="form-control" @bind-Value="ticketDraft.CreatedByUserId" />
+                    @if (submitted && string.IsNullOrWhiteSpace(ticketDraft.CreatedByUserId))
+                    {
+                        <div class="validation-message">Podaj osobę zgłaszającą.</div>
+                    }
+                </div>
+            </section>
+
+            <aside class="ticket-form-side" aria-label="Ustawienia ticketu">
+                <div class="mb-3">
+                    <label for="ticket-priority" class="form-label">Priorytet</label>
+                    <InputSelect id="ticket-priority" class="form-select" @bind-Value="ticketDraft.Priority">
+                        <option value="Low">Niski</option>
+                        <option value="Normal">Normalny</option>
+                        <option value="High">Wysoki</option>
+                        <option value="Critical">Krytyczny</option>
+                    </InputSelect>
+                </div>
+
+                <div class="mb-3">
+                    <label for="assigned-agent" class="form-label">Przypisany agent</label>
+                    <InputText id="assigned-agent" class="form-control" @bind-Value="ticketDraft.AssignedAgentId" />
+                </div>
+
+                <div class="ticket-form-summary">
+                    <span>Status</span>
+                    <strong>@ticketDraft.Status</strong>
+                </div>
+
+                <button class="btn btn-primary w-100" type="submit" disabled="@isSaving">
+                    @(isSaving ? "Zapisywanie..." : "Utwórz ticket")
+                </button>
+            </aside>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private Ticket ticketDraft = CreateEmptyTicket();
+    private bool submitted;
+    private bool isSaving;
+    private string? successMessage;
+    private string? errorMessage;
+
+    private async Task CreateTicketAsync()
+    {
+        submitted = true;
+        successMessage = null;
+        errorMessage = null;
+
+        if (!IsValid())
+        {
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            ticketDraft.Status = "New";
+            ticketDraft.CreatedAt = DateTime.UtcNow;
+            ticketDraft.UpdatedAt = null;
+            ticketDraft.ClosedAt = null;
+            ticketDraft.Comments = new List<TicketComment>();
+
+            await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+            await dbContext.Database.EnsureCreatedAsync();
+
+            dbContext.Tickets.Add(ticketDraft);
+            await dbContext.SaveChangesAsync();
+
+            successMessage = $"Ticket #{ticketDraft.Id} został utworzony.";
+            ticketDraft = CreateEmptyTicket();
+            submitted = false;
+        }
+        catch (Exception exception)
+        {
+            errorMessage = $"Nie udało się zapisać ticketu: {exception.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private bool IsValid()
+    {
+        return !string.IsNullOrWhiteSpace(ticketDraft.Title)
+            && !string.IsNullOrWhiteSpace(ticketDraft.Description)
+            && !string.IsNullOrWhiteSpace(ticketDraft.CreatedByUserId);
+    }
+
+    private static Ticket CreateEmptyTicket()
+    {
+        return new Ticket
+        {
+            Status = "New",
+            Priority = "Normal"
+        };
+    }
+}

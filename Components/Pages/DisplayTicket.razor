@@ -1,13 +1,117 @@
-﻿@page "/DisplayTicket"
+@page "/DisplayTicket"
+@page "/DisplayTicket/{TicketId:int}"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using layZTickets.Data
+@using layZTickets.DataSets
+@inject IDbContextFactory<AppDbContext> DbContextFactory
 
 <PageTitle>Ticket</PageTitle>
 
-<h1>Ticket title</h1>
+<div class="ticket-details-page">
+    <a class="btn btn-outline-secondary mb-3" href="DisplayTickets">Wróć do listy</a>
 
-<h4>Person</h4>
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+    }
+    else if (isLoading)
+    {
+        <p role="status">Ładowanie ticketu...</p>
+    }
+    else if (ticket is null)
+    {
+        <div class="tickets-empty">
+            <h1>Nie znaleziono ticketu</h1>
+            <p>Wybrane zgłoszenie nie istnieje albo zostało usunięte.</p>
+        </div>
+    }
+    else
+    {
+        <article class="ticket-details">
+            <header class="ticket-details-header">
+                <div>
+                    <p class="ticket-create-eyebrow">Ticket #@ticket.Id</p>
+                    <h1>@ticket.Title</h1>
+                </div>
 
-Ticket main text
+                <span class="ticket-status">@ticket.Status</span>
+            </header>
+
+            <dl class="ticket-meta-grid">
+                <div>
+                    <dt>Priorytet</dt>
+                    <dd>@ticket.Priority</dd>
+                </div>
+                <div>
+                    <dt>Zgłaszający</dt>
+                    <dd>@ticket.CreatedByUserId</dd>
+                </div>
+                <div>
+                    <dt>Przypisany agent</dt>
+                    <dd>@(string.IsNullOrWhiteSpace(ticket.AssignedAgentId) ? "Brak" : ticket.AssignedAgentId)</dd>
+                </div>
+                <div>
+                    <dt>Utworzono</dt>
+                    <dd>@ticket.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</dd>
+                </div>
+                <div>
+                    <dt>Zaktualizowano</dt>
+                    <dd>@FormatDate(ticket.UpdatedAt)</dd>
+                </div>
+                <div>
+                    <dt>Zamknięto</dt>
+                    <dd>@FormatDate(ticket.ClosedAt)</dd>
+                </div>
+            </dl>
+
+            <section class="ticket-description-panel">
+                <h2>Opis</h2>
+                <p>@ticket.Description</p>
+            </section>
+        </article>
+    }
+</div>
 
 @code {
+    [Parameter]
+    public int? TicketId { get; set; }
 
+    private Ticket? ticket;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (TicketId is null)
+        {
+            isLoading = false;
+            return;
+        }
+
+        try
+        {
+            await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+            await dbContext.Database.EnsureCreatedAsync();
+
+            ticket = await dbContext.Tickets
+                .AsNoTracking()
+                .FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
+        }
+        catch (Exception exception)
+        {
+            errorMessage = $"Nie udało się pobrać ticketu: {exception.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private static string FormatDate(DateTime? date)
+    {
+        return date?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "Brak";
+    }
 }
