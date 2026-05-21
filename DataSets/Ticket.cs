@@ -16,6 +16,6 @@
         public string? AssignedAgentId { get; set; }
 
         public List<TicketComment> Comments { get; set; } = new();
-        public List<TicketHistory> History { get; set; } = new();
+        //public List<TicketHistory> History { get; set; } = new();
     }
 }
