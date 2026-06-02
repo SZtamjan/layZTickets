@@ -5,16 +5,14 @@
 @using layZTickets.DataSets
 @inject IDbContextFactory<AppDbContext> DbContextFactory
 
-<PageTitle>Create Ticket</PageTitle>
+<PageTitle>Nowe Zgłoszenie</PageTitle>
 
-<div class="ticket-create-page">
-    <header class="ticket-create-header">
+<div class="desk-page">
+    <header class="desk-page-header create-header">
         <div>
-            <p class="ticket-create-eyebrow">Nowe zgłoszenie</p>
-            <h1>Utwórz ticket</h1>
+            <h1>Utwórz nowe zgłoszenie</h1>
+            <p>Opisz napotkany problem, aby zespół techniczny mógł szybko przejąć temat.</p>
         </div>
-
-        <a class="btn btn-outline-secondary" href="DisplayTickets">Lista ticketów</a>
     </header>
 
     @if (!string.IsNullOrWhiteSpace(successMessage))
@@ -31,63 +29,108 @@
         </div>
     }
 
-    <EditForm Model="ticketDraft" OnSubmit="CreateTicketAsync" FormName="create-ticket-form">
-        <div class="ticket-form-grid">
-            <section class="ticket-form-main" aria-label="Szczegóły ticketu">
-                <div class="mb-3">
-                    <label for="ticket-title" class="form-label">Tytuł</label>
-                    <InputText id="ticket-title" class="form-control" @bind-Value="ticketDraft.Title" />
-                    @if (submitted && string.IsNullOrWhiteSpace(ticketDraft.Title))
-                    {
-                        <div class="validation-message">Podaj tytuł zgłoszenia.</div>
-                    }
-                </div>
+    <EditForm Model="ticketDraft" OnSubmit="CreateTicketAsync" FormName="create-ticket-form" class="create-ticket-grid">
+        <div class="create-main-column">
+            <section class="desk-card">
+                <div class="form-stack">
+                    <div>
+                        <label for="ticket-title">Tytuł zgłoszenia</label>
+                        <InputText id="ticket-title" class="desk-input" @bind-Value="ticketDraft.Title" placeholder="Np. Problem z logowaniem do systemu VPN" />
+                        @if (submitted && string.IsNullOrWhiteSpace(ticketDraft.Title))
+                        {
+                            <div class="validation-message">Podaj tytuł zgłoszenia.</div>
+                        }
+                    </div>
 
-                <div class="mb-3">
-                    <label for="ticket-description" class="form-label">Opis</label>
-                    <InputTextArea id="ticket-description" class="form-control ticket-description" @bind-Value="ticketDraft.Description" />
-                    @if (submitted && string.IsNullOrWhiteSpace(ticketDraft.Description))
-                    {
-                        <div class="validation-message">Opisz, czego dotyczy ticket.</div>
-                    }
-                </div>
+                    <div>
+                        <label for="ticket-description">Opis problemu</label>
+                        <InputTextArea id="ticket-description" class="desk-input desk-textarea" @bind-Value="ticketDraft.Description" placeholder="Podaj szczegóły problemu, komunikaty o błędach oraz kroki, które doprowadziły do usterki..." />
+                        @if (submitted && string.IsNullOrWhiteSpace(ticketDraft.Description))
+                        {
+                            <div class="validation-message">Opisz, czego dotyczy ticket.</div>
+                        }
+                    </div>
 
-                <div class="mb-0">
-                    <label for="created-by" class="form-label">Zgłaszający</label>
-                    <InputText id="created-by" class="form-control" @bind-Value="ticketDraft.CreatedByUserId" />
-                    @if (submitted && string.IsNullOrWhiteSpace(ticketDraft.CreatedByUserId))
-                    {
-                        <div class="validation-message">Podaj osobę zgłaszającą.</div>
-                    }
+                    <div>
+                        <label for="created-by">Zgłaszający</label>
+                        <InputText id="created-by" class="desk-input" @bind-Value="ticketDraft.CreatedByUserId" placeholder="Imię i nazwisko lub login" />
+                        @if (submitted && string.IsNullOrWhiteSpace(ticketDraft.CreatedByUserId))
+                        {
+                            <div class="validation-message">Podaj osobę zgłaszającą.</div>
+                        }
+                    </div>
                 </div>
             </section>
 
-            <aside class="ticket-form-side" aria-label="Ustawienia ticketu">
-                <div class="mb-3">
-                    <label for="ticket-priority" class="form-label">Priorytet</label>
-                    <InputSelect id="ticket-priority" class="form-select" @bind-Value="ticketDraft.Priority">
-                        <option value="Low">Niski</option>
-                        <option value="Normal">Normalny</option>
-                        <option value="High">Wysoki</option>
-                        <option value="Critical">Krytyczny</option>
-                    </InputSelect>
+            <section class="desk-card attachment-drop">
+                <label>Załączniki</label>
+                <div>
+                    <span class="material-symbols-outlined" aria-hidden="true">cloud_upload</span>
+                    <strong>Kliknij lub przeciągnij plik tutaj</strong>
+                    <p>PNG, JPG, PDF, TXT (Max 10MB)</p>
                 </div>
-
-                <div class="mb-3">
-                    <label for="assigned-agent" class="form-label">Przypisany agent</label>
-                    <InputText id="assigned-agent" class="form-control" @bind-Value="ticketDraft.AssignedAgentId" />
-                </div>
-
-                <div class="ticket-form-summary">
-                    <span>Status</span>
-                    <strong>@ticketDraft.Status</strong>
-                </div>
-
-                <button class="btn btn-primary w-100" type="submit" disabled="@isSaving">
-                    @(isSaving ? "Zapisywanie..." : "Utwórz ticket")
-                </button>
-            </aside>
+            </section>
         </div>
+
+        <aside class="create-side-column">
+            <section class="desk-card">
+                <div class="form-stack">
+                    <div>
+                        <label>Kategoria</label>
+                        <div class="category-list">
+                            <label>
+                                <input type="radio" name="category" value="hardware" checked />
+                                <span class="material-symbols-outlined" aria-hidden="true">laptop_mac</span>
+                                Sprzęt
+                            </label>
+                            <label>
+                                <input type="radio" name="category" value="software" />
+                                <span class="material-symbols-outlined" aria-hidden="true">terminal</span>
+                                Oprogramowanie
+                            </label>
+                            <label>
+                                <input type="radio" name="category" value="network" />
+                                <span class="material-symbols-outlined" aria-hidden="true">router</span>
+                                Sieć
+                            </label>
+                            <label>
+                                <input type="radio" name="category" value="other" />
+                                <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
+                                Inne
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="ticket-priority">Priorytet</label>
+                        <InputSelect id="ticket-priority" class="desk-input" @bind-Value="ticketDraft.Priority">
+                            <option value="Low">Niski (Informacyjne)</option>
+                            <option value="Normal">Normalny (Standardowe zgłoszenie)</option>
+                            <option value="High">Wysoki (Krytyczna awaria)</option>
+                            <option value="Critical">Pilny (Praca wstrzymana)</option>
+                        </InputSelect>
+                    </div>
+
+                    <div>
+                        <label for="assigned-agent">Przypisany agent</label>
+                        <InputText id="assigned-agent" class="desk-input" @bind-Value="ticketDraft.AssignedAgentId" placeholder="Opcjonalnie" />
+                    </div>
+                </div>
+            </section>
+
+            <section class="desk-card action-card">
+                <button class="desk-primary-button wide" type="submit" disabled="@isSaving">
+                    <span class="material-symbols-outlined" aria-hidden="true">send</span>
+                    @(isSaving ? "Wysyłanie..." : "Wyślij zgłoszenie")
+                </button>
+                <a class="desk-secondary-button wide" href="DisplayTickets">Anuluj</a>
+            </section>
+
+            <section class="info-card">
+                <span class="material-symbols-outlined" aria-hidden="true">info</span>
+                <p>Twoje zgłoszenie zostanie zapisane w bazie i pojawi się na liście najnowszych ticketów.</p>
+            </section>
+        </aside>
     </EditForm>
 </div>
 
@@ -114,6 +157,7 @@
         try
         {
             ticketDraft.Status = "New";
+            ticketDraft.TicketNumber = string.Empty;
             ticketDraft.CreatedAt = DateTime.UtcNow;
             ticketDraft.UpdatedAt = null;
             ticketDraft.ClosedAt = null;
@@ -121,11 +165,15 @@
 
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
             await dbContext.Database.EnsureCreatedAsync();
+            await EnsureTicketSchemaAsync(dbContext);
 
             dbContext.Tickets.Add(ticketDraft);
             await dbContext.SaveChangesAsync();
 
-            successMessage = $"Ticket #{ticketDraft.Id} został utworzony.";
+            ticketDraft.TicketNumber = FormatTicketNumber(ticketDraft.Id);
+            await dbContext.SaveChangesAsync();
+
+            successMessage = $"Ticket {ticketDraft.TicketNumber} został utworzony.";
             ticketDraft = CreateEmptyTicket();
             submitted = false;
         }
@@ -153,5 +201,33 @@
             Status = "New",
             Priority = "Normal"
         };
+    }
+
+    private static string FormatTicketNumber(int id)
+    {
+        return $"IT-{id:0000}";
+    }
+
+    private static async Task EnsureTicketSchemaAsync(AppDbContext dbContext)
+    {
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('Tickets', 'TicketNumber') IS NULL
+            BEGIN
+                ALTER TABLE [Tickets] ADD [TicketNumber] nvarchar(16) NOT NULL CONSTRAINT [DF_Tickets_TicketNumber] DEFAULT N'';
+            END
+            ");
+
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+            UPDATE [Tickets]
+            SET [TicketNumber] = CONCAT(N'IT-', RIGHT(CONCAT(N'0000', CONVERT(nvarchar(20), [Id])), 4))
+            WHERE [TicketNumber] IS NULL OR [TicketNumber] = N'';
+            ");
+
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'TicketComments', N'U') IS NOT NULL AND COL_LENGTH('TicketComments', 'IsInternal') IS NULL
+            BEGIN
+                ALTER TABLE [TicketComments] ADD [IsInternal] bit NOT NULL CONSTRAINT [DF_TicketComments_IsInternal] DEFAULT CAST(0 AS bit);
+            END
+            ");
     }
 }

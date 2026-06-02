@@ -1,48 +1,33 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">layZTickets</a>
+<div class="service-sidebar">
+    <div class="brand">
+        <h1>ServiceDesk</h1>
+        <p>IT Support System</p>
+    </div>
+
+    <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+    <nav class="nav-scrollable">
+        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+            <span class="material-symbols-outlined" aria-hidden="true">dashboard</span>
+            <span>Dashboard</span>
+        </NavLink>
+
+        <NavLink class="nav-link" href="DisplayTickets">
+            <span class="material-symbols-outlined" aria-hidden="true">view_list</span>
+            <span>Wszystkie Zgłoszenia</span>
+        </NavLink>
+
+        <NavLink class="nav-link" href="CreateTicket">
+            <span class="material-symbols-outlined" aria-hidden="true">add_circle</span>
+            <span>Nowe Zgłoszenie</span>
+        </NavLink>
+    </nav>
+
+    <div class="sidebar-user">
+        <div class="sidebar-avatar">MK</div>
+        <div>
+            <strong>Marek Nowak</strong>
+            <span>Starszy Agent IT</span>
+        </div>
     </div>
 </div>
-
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="CreateTicket">
-                <img src="/Logo/LayZLogo.png" alt="LayZ logo" class="nav-logo" />
-                <span>Create Ticket</span>
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="DisplayTickets">
-                <img src="/Logo/LayZLogo.png" alt="LayZ logo" class="nav-logo" />
-                <span>Tickets</span>
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="DisplayTicket">
-                <img src="/Logo/LayZLogo.png" alt="LayZ logo" class="nav-logo" />
-                <span>Ticket</span>
-            </NavLink>
-        </div>
-    </nav>
-</div>
-

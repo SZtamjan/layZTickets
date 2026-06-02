@@ -8,9 +8,7 @@
 
 <PageTitle>Ticket</PageTitle>
 
-<div class="ticket-details-page">
-    <a class="btn btn-outline-secondary mb-3" href="DisplayTickets">Wróć do listy</a>
-
+<div class="ticket-detail-shell">
     @if (!string.IsNullOrWhiteSpace(errorMessage))
     {
         <div class="alert alert-danger" role="alert">
@@ -19,59 +17,166 @@
     }
     else if (isLoading)
     {
-        <p role="status">Ładowanie ticketu...</p>
+        <p role="status" class="desk-muted">Ładowanie ticketu...</p>
     }
     else if (ticket is null)
     {
-        <div class="tickets-empty">
+        <div class="desk-empty">
             <h1>Nie znaleziono ticketu</h1>
             <p>Wybrane zgłoszenie nie istnieje albo zostało usunięte.</p>
+            <a class="desk-primary-button mt-3" href="DisplayTickets">Wróć do listy</a>
         </div>
     }
     else
     {
-        <article class="ticket-details">
-            <header class="ticket-details-header">
-                <div>
-                    <p class="ticket-create-eyebrow">Ticket #@ticket.Id</p>
-                    <h1>@ticket.Title</h1>
+        <section class="ticket-hero">
+            <div>
+                <div class="ticket-hero-meta">
+                    <span class="ticket-code">#@GetTicketNumber(ticket)</span>
+                    <span class="@GetStatusClass(ticket.Status)">
+                        <span class="material-symbols-outlined" aria-hidden="true">fiber_manual_record</span>
+                        @ticket.Status
+                    </span>
+                    <span class="@GetPriorityClass(ticket.Priority)">
+                        <span class="material-symbols-outlined" aria-hidden="true">priority_high</span>
+                        @ticket.Priority
+                    </span>
+                </div>
+                <h1>@ticket.Title</h1>
+            </div>
+
+            <div class="ticket-hero-actions">
+                <a class="desk-secondary-button" href="DisplayTickets">
+                    <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+                    Lista
+                </a>
+                <button class="desk-primary-button" type="button">
+                    <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                    Edytuj
+                </button>
+            </div>
+        </section>
+
+        <div class="ticket-detail-grid">
+            <main class="ticket-conversation">
+                <section class="ticket-message-card">
+                    <div class="message-author">
+                        <div class="message-avatar">@GetInitials(ticket.CreatedByUserId)</div>
+                        <div>
+                            <strong>@ticket.CreatedByUserId</strong>
+                            <span>@ticket.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                        </div>
+                    </div>
+                    <p>@ticket.Description</p>
+                </section>
+
+                <section class="ticket-timeline">
+                    <div class="timeline-line"></div>
+                    <div class="timeline-event">
+                        <span></span>
+                        <div>
+                            <strong>System</strong>
+                            <p>Zgłoszenie utworzone i dodane do kolejki HelpDesk.</p>
+                            <small>@ticket.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small>
+                        </div>
+                    </div>
+                    <div class="timeline-event internal">
+                        <span></span>
+                        <div>
+                            <strong>Notatka wewnętrzna</strong>
+                            <p>Agent może tutaj dopisać diagnozę, aktualizację statusu albo informację dla zespołu.</p>
+                            <small>Widoczne tylko dla zespołu IT</small>
+                        </div>
+                    </div>
+
+                    @foreach (var comment in ticket.Comments.OrderBy(comment => comment.CreatedAt))
+                    {
+                        <div class="timeline-event @(comment.IsInternal ? "internal" : null)">
+                            <span></span>
+                            <div>
+                                <strong>@(comment.IsInternal ? "Notatka wewnętrzna" : "Odpowiedź")</strong>
+                                <p class="comment-author">@comment.AuthorUserId</p>
+                                <p>@comment.Content</p>
+                                <small>@comment.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small>
+                            </div>
+                        </div>
+                    }
+                </section>
+
+                <section class="reply-box">
+                    @if (!string.IsNullOrWhiteSpace(commentErrorMessage))
+                    {
+                        <div class="comment-error" role="alert">@commentErrorMessage</div>
+                    }
+
+                    <div class="reply-author">
+                        <label for="comment-author">Autor</label>
+                        <input id="comment-author" class="desk-input" @bind="commentAuthor" @bind:event="oninput" />
+                    </div>
+
+                    <textarea class="reply-textarea" @bind="commentContent" @bind:event="oninput" placeholder="Wpisz odpowiedź dla użytkownika lub notatkę..."></textarea>
+                    <footer>
+                        <button type="button">
+                            <span class="material-symbols-outlined" aria-hidden="true">attach_file</span>
+                            Załącz plik
+                        </button>
+                        <button type="button" @onclick="() => AddCommentAsync(true)" disabled="@isAddingComment">
+                            <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+                            Dodaj notatkę
+                        </button>
+                        <button class="send" type="button" @onclick="() => AddCommentAsync(false)" disabled="@isAddingComment">Wyślij odpowiedź</button>
+                    </footer>
+                </section>
+            </main>
+
+            <aside class="ticket-side-panel">
+                <div class="side-actions">
+                    <button class="desk-primary-button" type="button">
+                        <span class="material-symbols-outlined" aria-hidden="true">person_add</span>
+                        Przypisz do mnie
+                    </button>
+                    <button class="desk-secondary-button" type="button">
+                        <span class="material-symbols-outlined" aria-hidden="true">sync</span>
+                        Zmień status
+                    </button>
                 </div>
 
-                <span class="ticket-status">@ticket.Status</span>
-            </header>
+                <section class="side-card">
+                    <h2>Szczegóły</h2>
+                    <dl>
+                        <div>
+                            <dt>Użytkownik</dt>
+                            <dd>@ticket.CreatedByUserId</dd>
+                        </div>
+                        <div>
+                            <dt>Przypisany agent</dt>
+                            <dd>@(string.IsNullOrWhiteSpace(ticket.AssignedAgentId) ? "Nieprzypisany" : ticket.AssignedAgentId)</dd>
+                        </div>
+                        <div>
+                            <dt>Data utworzenia</dt>
+                            <dd>@ticket.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</dd>
+                        </div>
+                        <div>
+                            <dt>Ostatnia aktualizacja</dt>
+                            <dd>@FormatDate(ticket.UpdatedAt)</dd>
+                        </div>
+                        <div>
+                            <dt>Zamknięto</dt>
+                            <dd>@FormatDate(ticket.ClosedAt)</dd>
+                        </div>
+                    </dl>
+                </section>
 
-            <dl class="ticket-meta-grid">
-                <div>
-                    <dt>Priorytet</dt>
-                    <dd>@ticket.Priority</dd>
-                </div>
-                <div>
-                    <dt>Zgłaszający</dt>
-                    <dd>@ticket.CreatedByUserId</dd>
-                </div>
-                <div>
-                    <dt>Przypisany agent</dt>
-                    <dd>@(string.IsNullOrWhiteSpace(ticket.AssignedAgentId) ? "Brak" : ticket.AssignedAgentId)</dd>
-                </div>
-                <div>
-                    <dt>Utworzono</dt>
-                    <dd>@ticket.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</dd>
-                </div>
-                <div>
-                    <dt>Zaktualizowano</dt>
-                    <dd>@FormatDate(ticket.UpdatedAt)</dd>
-                </div>
-                <div>
-                    <dt>Zamknięto</dt>
-                    <dd>@FormatDate(ticket.ClosedAt)</dd>
-                </div>
-            </dl>
-
-            <section class="ticket-description-panel">
-                <h2>Opis</h2>
-                <p>@ticket.Description</p>
-            </section>
-        </article>
+                <section class="side-card attachments-card">
+                    <h2>Załączniki</h2>
+                    <div class="attachment-empty">
+                        <span class="material-symbols-outlined" aria-hidden="true">description</span>
+                        Brak załączników
+                    </div>
+                    <button type="button">+ Dodaj pliki</button>
+                </section>
+            </aside>
+        </div>
     }
 </div>
 
@@ -81,7 +186,11 @@
 
     private Ticket? ticket;
     private bool isLoading = true;
+    private bool isAddingComment;
+    private string commentAuthor = "Agent IT";
+    private string commentContent = string.Empty;
     private string? errorMessage;
+    private string? commentErrorMessage;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -95,8 +204,10 @@
         {
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
             await dbContext.Database.EnsureCreatedAsync();
+            await EnsureTicketSchemaAsync(dbContext);
 
             ticket = await dbContext.Tickets
+                .Include(ticket => ticket.Comments)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
         }
@@ -110,8 +221,126 @@
         }
     }
 
+    private async Task AddCommentAsync(bool isInternal)
+    {
+        commentErrorMessage = null;
+
+        if (TicketId is null || ticket is null)
+        {
+            commentErrorMessage = "Nie można dodać komentarza bez wybranego ticketu.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(commentAuthor))
+        {
+            commentErrorMessage = "Podaj autora komentarza.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(commentContent))
+        {
+            commentErrorMessage = "Wpisz treść komentarza.";
+            return;
+        }
+
+        isAddingComment = true;
+
+        try
+        {
+            await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+            await dbContext.Database.EnsureCreatedAsync();
+            await EnsureTicketSchemaAsync(dbContext);
+
+            var comment = new TicketComment
+            {
+                TicketId = TicketId.Value,
+                AuthorUserId = commentAuthor.Trim(),
+                Content = commentContent.Trim(),
+                IsInternal = isInternal,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            dbContext.TicketComments.Add(comment);
+
+            var ticketToUpdate = await dbContext.Tickets.FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
+            if (ticketToUpdate is not null)
+            {
+                ticketToUpdate.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await dbContext.SaveChangesAsync();
+
+            ticket.Comments.Add(comment);
+            ticket.UpdatedAt = ticketToUpdate?.UpdatedAt ?? ticket.UpdatedAt;
+            commentContent = string.Empty;
+        }
+        catch (Exception exception)
+        {
+            commentErrorMessage = $"Nie udało się zapisać komentarza: {exception.Message}";
+        }
+        finally
+        {
+            isAddingComment = false;
+        }
+    }
+
     private static string FormatDate(DateTime? date)
     {
         return date?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "Brak";
+    }
+
+    private static string GetTicketNumber(Ticket ticket)
+    {
+        return string.IsNullOrWhiteSpace(ticket.TicketNumber)
+            ? $"IT-{ticket.Id:0000}"
+            : ticket.TicketNumber;
+    }
+
+    private static string GetStatusClass(string status)
+    {
+        return status.Equals("New", StringComparison.OrdinalIgnoreCase) || status.Equals("Nowe", StringComparison.OrdinalIgnoreCase)
+            ? "detail-chip detail-status"
+            : "detail-chip";
+    }
+
+    private static string GetPriorityClass(string priority)
+    {
+        return priority.Equals("Critical", StringComparison.OrdinalIgnoreCase) || priority.Equals("High", StringComparison.OrdinalIgnoreCase)
+            ? "detail-chip detail-priority"
+            : "detail-chip";
+    }
+
+    private static string GetInitials(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "??";
+        }
+
+        var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return string.Concat(parts.Take(2).Select(part => char.ToUpperInvariant(part[0])));
+    }
+
+    private static async Task EnsureTicketSchemaAsync(AppDbContext dbContext)
+    {
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('Tickets', 'TicketNumber') IS NULL
+            BEGIN
+                ALTER TABLE [Tickets] ADD [TicketNumber] nvarchar(16) NOT NULL CONSTRAINT [DF_Tickets_TicketNumber] DEFAULT N'';
+            END
+            ");
+
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+            UPDATE [Tickets]
+            SET [TicketNumber] = CONCAT(N'IT-', RIGHT(CONCAT(N'0000', CONVERT(nvarchar(20), [Id])), 4))
+            WHERE [TicketNumber] IS NULL OR [TicketNumber] = N'';
+            ");
+
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'TicketComments', N'U') IS NOT NULL AND COL_LENGTH('TicketComments', 'IsInternal') IS NULL
+            BEGIN
+                ALTER TABLE [TicketComments] ADD [IsInternal] bit NOT NULL CONSTRAINT [DF_TicketComments_IsInternal] DEFAULT CAST(0 AS bit);
+            END
+            ");
     }
 }

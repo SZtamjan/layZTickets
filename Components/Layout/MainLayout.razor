@@ -1,16 +1,30 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
+<div class="app-shell">
+    <aside class="sidebar">
         <NavMenu />
-    </div>
+    </aside>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
+    <main class="app-main">
+        <header class="top-app-bar">
+            <div class="top-search">
+                <span class="material-symbols-outlined" aria-hidden="true">search</span>
+                <input type="search" placeholder="Szukaj zgłoszeń, osób, tematów..." />
+            </div>
 
-        <article class="content px-4">
+            <div class="top-actions">
+                <h2>HelpDesk Portal</h2>
+                <button class="icon-button" type="button" title="Powiadomienia">
+                    <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
+                </button>
+                <button class="icon-button" type="button" title="Ustawienia">
+                    <span class="material-symbols-outlined" aria-hidden="true">settings</span>
+                </button>
+                <div class="user-avatar" aria-hidden="true">JD</div>
+            </div>
+        </header>
+
+        <article class="content">
             @Body
         </article>
     </main>
@@ -19,5 +33,5 @@
 <div id="blazor-error-ui">
     An unhandled error has occurred.
     <a href="" class="reload">Reload</a>
-    <a class="dismiss">🗙</a>
+    <a class="dismiss">x</a>
 </div>

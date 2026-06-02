@@ -5,17 +5,41 @@
 @using layZTickets.DataSets
 @inject IDbContextFactory<AppDbContext> DbContextFactory
 
-<PageTitle>Tickets</PageTitle>
+<PageTitle>Wszystkie Zgłoszenia</PageTitle>
 
-<div class="tickets-page">
-    <header class="tickets-header">
+<div class="desk-page">
+    <header class="desk-page-header">
         <div>
-            <p class="ticket-create-eyebrow">Ostatnie zgłoszenia</p>
-            <h1>Tickets</h1>
+            <h1>Wszystkie Zgłoszenia</h1>
+            <p>Przeglądaj i zarządzaj najnowszymi zgłoszeniami w systemie.</p>
         </div>
 
-        <a class="btn btn-primary" href="CreateTicket">Utwórz ticket</a>
+        <a class="desk-primary-button" href="CreateTicket">
+            <span class="material-symbols-outlined" aria-hidden="true">add</span>
+            Nowe Zgłoszenie
+        </a>
     </header>
+
+    <section class="desk-filter-bar" aria-label="Filtry">
+        <div class="filter-label">
+            <span class="material-symbols-outlined" aria-hidden="true">filter_list</span>
+            <span>Filtry:</span>
+        </div>
+        <select aria-label="Status">
+            <option>Status: Wszystkie</option>
+            <option>Nowe</option>
+            <option>W trakcie</option>
+            <option>Rozwiązane</option>
+        </select>
+        <select aria-label="Priorytet">
+            <option>Priorytet: Wszystkie</option>
+            <option>Pilny</option>
+            <option>Wysoki</option>
+            <option>Normalny</option>
+            <option>Niski</option>
+        </select>
+        <button type="button">Wyczyść wszystkie filtry</button>
+    </section>
 
     @if (!string.IsNullOrWhiteSpace(errorMessage))
     {
@@ -25,46 +49,91 @@
     }
     else if (isLoading)
     {
-        <p role="status">Ładowanie ticketów...</p>
+        <p role="status" class="desk-muted">Ładowanie ticketów...</p>
     }
     else if (tickets.Count == 0)
     {
-        <div class="tickets-empty">
+        <div class="desk-empty">
             <h2>Brak ticketów</h2>
             <p>Po utworzeniu pierwszego zgłoszenia pojawi się ono na tej liście.</p>
         </div>
     }
     else
     {
-        <div class="tickets-table-wrap">
-            <table class="table tickets-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Tytuł</th>
-                        <th scope="col">Status</th>
-                        <th scope="col">Priorytet</th>
-                        <th scope="col">Zgłaszający</th>
-                        <th scope="col">Utworzono</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var ticket in tickets)
-                    {
+        <section class="desk-table-card" aria-label="Lista ticketów">
+            <div class="desk-table-scroll">
+                <table class="desk-table">
+                    <thead>
                         <tr>
-                            <td>
-                                <a class="ticket-title-link" href="@($"DisplayTicket/{ticket.Id}")">
-                                    @ticket.Title
-                                </a>
-                            </td>
-                            <td>@ticket.Status</td>
-                            <td>@ticket.Priority</td>
-                            <td>@ticket.CreatedByUserId</td>
-                            <td>@ticket.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                            <th scope="col">ID</th>
+                            <th scope="col">Tytuł Zgłoszenia</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Priorytet</th>
+                            <th scope="col">Imię</th>
+                            <th scope="col">Nazwisko</th>
+                            <th scope="col">Przypisany</th>
+                            <th scope="col">Utworzono</th>
+                            <th scope="col" class="text-end">Akcje</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @foreach (var ticket in tickets)
+                        {
+                            var reporter = SplitReporterName(ticket.CreatedByUserId);
+
+                            <tr>
+                                <td class="ticket-id">#@GetTicketNumber(ticket)</td>
+                                <td>
+                                    <a class="ticket-title-stack" href="@($"DisplayTicket/{ticket.Id}")">
+                                        <strong>@ticket.Title</strong>
+                                        <span>
+                                            <span class="material-symbols-outlined" aria-hidden="true">support_agent</span>
+                                            Zgłaszający
+                                        </span>
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="@GetStatusClass(ticket.Status)">@ticket.Status</span>
+                                </td>
+                                <td>
+                                    <span class="@GetPriorityClass(ticket.Priority)">
+                                        <span aria-hidden="true"></span>
+                                        @ticket.Priority
+                                    </span>
+                                </td>
+                                <td>@reporter.FirstName</td>
+                                <td>@reporter.LastName</td>
+                                <td>
+                                    <div class="agent-cell">
+                                        <span>@GetInitials(ticket.AssignedAgentId)</span>
+                                        <strong>@(string.IsNullOrWhiteSpace(ticket.AssignedAgentId) ? "Nieprzypisany" : ticket.AssignedAgentId)</strong>
+                                    </div>
+                                </td>
+                                <td>@ticket.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                                <td class="text-end">
+                                    <a class="desk-icon-link" href="@($"DisplayTicket/{ticket.Id}")" title="Pokaż szczegóły">
+                                        <span class="material-symbols-outlined" aria-hidden="true">open_in_new</span>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <footer class="desk-table-footer">
+                <span>Pokazano @tickets.Count z maksymalnie 10 najnowszych zgłoszeń</span>
+                <div>
+                    <button type="button" disabled>
+                        <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+                    </button>
+                    <button type="button" class="active">1</button>
+                    <button type="button" disabled>
+                        <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+                    </button>
+                </div>
+            </footer>
+        </section>
     }
 </div>
 
@@ -79,6 +148,7 @@
         {
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
             await dbContext.Database.EnsureCreatedAsync();
+            await EnsureTicketSchemaAsync(dbContext);
 
             tickets = await dbContext.Tickets
                 .AsNoTracking()
@@ -94,5 +164,72 @@
         {
             isLoading = false;
         }
+    }
+
+    private static string GetStatusClass(string status)
+    {
+        return status.Equals("New", StringComparison.OrdinalIgnoreCase) || status.Equals("Nowe", StringComparison.OrdinalIgnoreCase)
+            ? "status-chip status-new"
+            : "status-chip status-progress";
+    }
+
+    private static string GetPriorityClass(string priority)
+    {
+        return priority.Equals("Critical", StringComparison.OrdinalIgnoreCase) || priority.Equals("High", StringComparison.OrdinalIgnoreCase)
+            ? "priority-chip priority-high"
+            : "priority-chip";
+    }
+
+    private static string GetInitials(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "NA";
+        }
+
+        var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return string.Concat(parts.Take(2).Select(part => char.ToUpperInvariant(part[0])));
+    }
+
+    private static string GetTicketNumber(Ticket ticket)
+    {
+        return string.IsNullOrWhiteSpace(ticket.TicketNumber)
+            ? $"IT-{ticket.Id:0000}"
+            : ticket.TicketNumber;
+    }
+
+    private static (string FirstName, string LastName) SplitReporterName(string reporter)
+    {
+        var parts = reporter.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return parts.Length switch
+        {
+            0 => ("Brak", "Brak"),
+            1 => (parts[0], "Brak"),
+            _ => (parts[0], string.Join(' ', parts.Skip(1)))
+        };
+    }
+
+    private static async Task EnsureTicketSchemaAsync(AppDbContext dbContext)
+    {
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('Tickets', 'TicketNumber') IS NULL
+            BEGIN
+                ALTER TABLE [Tickets] ADD [TicketNumber] nvarchar(16) NOT NULL CONSTRAINT [DF_Tickets_TicketNumber] DEFAULT N'';
+            END
+            ");
+
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+            UPDATE [Tickets]
+            SET [TicketNumber] = CONCAT(N'IT-', RIGHT(CONCAT(N'0000', CONVERT(nvarchar(20), [Id])), 4))
+            WHERE [TicketNumber] IS NULL OR [TicketNumber] = N'';
+            ");
+
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'TicketComments', N'U') IS NOT NULL AND COL_LENGTH('TicketComments', 'IsInternal') IS NULL
+            BEGIN
+                ALTER TABLE [TicketComments] ADD [IsInternal] bit NOT NULL CONSTRAINT [DF_TicketComments_IsInternal] DEFAULT CAST(0 AS bit);
+            END
+            ");
     }
 }
