@@ -21,13 +21,14 @@ W trybie Interactive Server przeglądarka wyświetla interfejs i przekazuje inte
 
 ## Obecny stan
 
-Stan analizy: **20 października 2026 r.** „Zaimplementowane” oznacza obecność ścieżki w kodzie, nie potwierdzenie działania z bazą.
+Stan analizy i weryfikacji: **20 października 2026 r.** Poniższa tabela opisuje implementację w kodzie. Podstawowy scenariusz tworzenia, odczytu i komentowania został również sprawdzony ręcznie przez użytkownika w jego lokalnym środowisku; zakres prób opisano w sekcji „Stan weryfikacji”.
 
 | Obszar | Stan w kodzie |
 | --- | --- |
 | Tworzenie zgłoszenia | Formularz, sprawdzanie wymaganych pól, zapis, numer `IT-…`, priorytet i tekstowo wpisywani zgłaszający oraz agent |
 | Lista zgłoszeń | Odczyt 10 najnowszych rekordów i przejście do szczegółów |
 | Szczegóły i komentarze | Odczyt zgłoszenia z komentarzami; zapis odpowiedzi i notatek z flagą `IsInternal` |
+| Schemat bazy | Dwie migracje EF Core; strony nie tworzą ani nie aktualizują schematu |
 | Kategorie | Wybór widoczny w formularzu, bez zapisu w modelu i bazie |
 | Edycja, zmiana statusu, przypisanie do siebie | Przyciski bez obsługi tych operacji; tekstowe przypisanie można podać przy tworzeniu |
 | Filtry, wyszukiwarka, paginacja | Elementy interfejsu bez zaimplementowanej logiki |
@@ -39,7 +40,7 @@ Stan analizy: **20 października 2026 r.** „Zaimplementowane” oznacza obecno
 ### Ograniczenia wymagające uwagi
 
 - Notatki „wewnętrzne” są pobierane wraz z pozostałymi komentarzami. Flaga i wygląd nie ograniczają dostępu do zespołu IT.
-- Brak migracji EF Core. Strony zgłoszeń wywołują `EnsureCreatedAsync` i powieloną metodę `EnsureTicketSchemaAsync`, która wykonuje `ALTER TABLE` i `UPDATE`. Samo otwarcie listy lub szczegółów może zmienić bazę.
+- Aplikacja wymaga bazy przygotowanej migracjami. Nie wykonuje ich automatycznie przy starcie ani podczas otwierania stron. Dotychczasowa baza utworzona przez `EnsureCreatedAsync` wymaga osobnego przygotowania historii migracji; zwykła aktualizacja nie rozpoznaje automatycznie istniejących tabel.
 - Numer zgłoszenia jest nadawany drugim wywołaniem `SaveChangesAsync`; oba zapisy nie są objęte wspólną, jawną transakcją.
 - Pola nazwane `CreatedByUserId`, `AssignedAgentId` i `AuthorUserId` przechowują obecnie wpisywany tekst, bez powiązania z kontami.
 - Obsługa błędów stron wyświetla treść wyjątków. Nie ma projektu testów automatycznych.
@@ -53,6 +54,8 @@ Stan analizy: **20 października 2026 r.** „Zaimplementowane” oznacza obecno
 | `Components/Layout/`, `Components/App.razor`, `Components/Routes.razor` | Układ, dokument HTML i routing |
 | `Data/AppDbContext.cs` | Zestawy encji i konfiguracja modelu EF |
 | `DataSets/` | Modele `Ticket` i `TicketComment` |
+| `Migrations/` | Zmiany struktury bazy, metadane migracji i snapshot modelu, czyli jego zapis do porównania przy kolejnych zmianach |
+| `dotnet-tools.json` | Manifest lokalnego narzędzia `dotnet-ef` w wersji 8.0.27 |
 | `Components/Services/SaveService/`, `App_Data/` | Serwis i pliki JSON; licznik zapisuje tam swój stan, zgłoszenia korzystają z SQL Server |
 | `wwwroot/` | CSS i zasoby statyczne |
 | `Properties/launchSettings.json` | Lokalne profile uruchomienia i porty |
@@ -62,7 +65,7 @@ Stan analizy: **20 października 2026 r.** „Zaimplementowane” oznacza obecno
 1. Użytkownik uzupełnia formularz w `Components/Pages/CreateTicket.razor`. `@bind-Value` wiąże pola z obiektem `ticketDraft`.
 2. Wysłanie `EditForm` uruchamia na serwerze `CreateTicketAsync`. Metoda sprawdza tytuł, opis i zgłaszającego oraz ustawia wartości początkowe.
 3. Wstrzyknięta przez DI fabryka `IDbContextFactory<AppDbContext>` tworzy kontekst do operacji na bazie. Rejestracja fabryki znajduje się w `Program.cs`.
-4. Obecny kod zapewnia utworzenie bazy i wykonuje własne polecenia aktualizacji schematu. To istniejące obejście, zaplanowane do zastąpienia migracjami.
+4. Kontekst korzysta ze struktury przygotowanej wcześniej migracjami. Komponent nie tworzy tabel ani nie wykonuje ręcznego SQL poprawiającego schemat lub numery istniejących zgłoszeń.
 5. `Tickets.Add` dodaje obiekt do śledzenia przez EF. Pierwsze `SaveChangesAsync` zapisuje go w SQL Server i uzupełnia `Id`.
 6. Kod tworzy `TicketNumber` z `Id` i zapisuje go drugim `SaveChangesAsync`, po czym wyświetla komunikat i czyści formularz.
 7. Lista wykonuje osobny odczyt przez EF, a szczegóły dołączają komentarze przez `Include`. Zapis komentarza aktualizuje również `UpdatedAt` zgłoszenia.
@@ -72,34 +75,80 @@ Stan analizy: **20 października 2026 r.** „Zaimplementowane” oznacza obecno
 ### Wymagania
 
 - SDK .NET obsługujący budowanie projektu `net8.0`; do lokalnego uruchomienia potrzebny jest runtime ASP.NET Core 8 i .NET 8.
-- Dostępna instancja **SQL Server** oraz konto z uprawnieniami do odczytu, zapisu i obecnych operacji tworzenia bazy/tabel oraz zmiany schematu. Samo SDK nie instaluje serwera bazy danych.
-- Dostęp do NuGet przy pierwszym przywracaniu pakietów.
+- Dostępna instancja **SQL Server** oraz konto z uprawnieniami do odczytu i zapisu danych. Wykonanie migracji wymaga dodatkowo uprawnień do zmian struktury, a utworzenie nowej bazy — do jej tworzenia. Samo SDK nie instaluje serwera bazy danych.
+- Dostęp do NuGet przy pierwszym przywracaniu pakietów i narzędzia `dotnet-ef`.
 - PowerShell dla poniższych przykładów. Visual Studio jest opcjonalne.
 
 W analizowanym środowisku kompilacja powiodła się z SDK `10.0.400`; runtime ASP.NET Core 8 i .NET 8 są zainstalowane. Repozytorium nie przypina SDK plikiem `global.json`.
 
 ### Konfiguracja bazy
 
-Aplikacja odczytuje `ConnectionStrings:DefaultConnection`. Repozytorium zawiera lokalne ustawienie w `appsettings.json`; nie zakładaj, że pasuje do Twojego komputera. Użyj osobnej bazy deweloperskiej, ponieważ obecne strony mogą modyfikować jej schemat i dane także przy odczycie.
+Aplikacja odczytuje `ConnectionStrings:DefaultConnection`. Repozytorium zawiera lokalne ustawienie w `appsettings.json`; nie zakładaj, że pasuje do Twojego komputera. Wskaż świadomie osobną bazę deweloperską przed wykonaniem migracji i uruchomieniem aplikacji.
 
 W PowerShell możesz nadpisać połączenie na czas bieżącej sesji bez edytowania plików repozytorium:
 
 ```powershell
-$env:ConnectionStrings__DefaultConnection = 'Server=YOUR_SQL_INSTANCE;Database=layZTickets_Dev;Integrated Security=True;Encrypt=True;TrustServerCertificate=True'
+$developmentConnection = 'Server=YOUR_SQL_INSTANCE;Database=layZTickets_Dev;Integrated Security=True;Encrypt=True;TrustServerCertificate=True'
+$env:ConnectionStrings__DefaultConnection = $developmentConnection
 ```
 
 Zastąp `YOUR_SQL_INSTANCE` nazwą swojej dostępnej instancji. Przykład używa uwierzytelniania Windows i lokalnego zaufania do certyfikatu SQL Server; jest konfiguracją do prób deweloperskich. Nie zawiera hasła i nie jest gotową konfiguracją wdrożeniową.
 
-Nie uruchamiaj obecnie `dotnet ef database update` jako kroku instalacji: projekt nie zawiera migracji. `EnsureCreatedAsync` nie zastępuje historii migracji ani pełnej aktualizacji dowolnej istniejącej bazy.
+W PowerShell nazwa instancji zawiera pojedynczy ukośnik, np. `'HOST\INSTANCE'`. W JSON ten sam znak wymaga zapisu `"HOST\\INSTANCE"`. Skopiowanie dwóch ukośników z JSON do PowerShell może spowodować błąd połączenia `Instance failure`.
 
-### Budowanie i start
+Zmienna środowiskowa jest przekazywana procesom uruchomionym z tej konsoli. Aplikację uruchom z tej samej sesji; uruchomienie jej niezależnie z IDE może korzystać z innej konfiguracji.
+
+### Pakiety, narzędzia i kompilacja
 
 Wykonuj polecenia z katalogu głównego repozytorium. Połączenie ustaw w tej samej sesji PowerShell, w której uruchamiasz aplikację.
 
 ```powershell
 dotnet restore layZTickets.sln
+dotnet tool restore
+dotnet ef --version
 dotnet build layZTickets.sln --no-restore
 ```
+
+`dotnet tool restore` odtwarza narzędzie zapisane w istniejącym `dotnet-tools.json`; nie trzeba ponownie tworzyć manifestu. Oczekiwana wersja `dotnet-ef` to `8.0.27`.
+
+### Migracje i nowa baza
+
+| Migracja | Zmiana |
+| --- | --- |
+| `20261020162759_InitialSchema` | Tabele `Tickets` i `TicketComments`, klucze główne z `IDENTITY`, relacja z kaskadowym usuwaniem komentarzy, ich indeks `TicketId` i wartości domyślne |
+| `20261020163451_AddUniqueTicketNumberIndex` | Unikalny indeks `IX_Tickets_TicketNumber` obejmujący niepuste numery |
+
+Dla nowej bazy, po ustawieniu przykładowego połączenia powyżej:
+
+```powershell
+dotnet ef database update --context AppDbContext --connection $developmentConnection
+```
+
+Polecenie tworzy bazę i tabele oraz zapisuje wykonane migracje w `dbo.__EFMigrationsHistory`. Nowa baza nie zawiera przykładowych zgłoszeń ani komentarzy. Uruchomienie aplikacji samo nie przygotuje schematu.
+
+`dotnet ef migrations add NazwaZmiany --context AppDbContext` generuje pliki migracji na podstawie różnicy między modelem a snapshotem. Nie aktualizuje bazy; przed zastosowaniem trzeba przejrzeć wygenerowane operacje. Przy zwykłym uruchomieniu projektu korzysta się z już istniejących migracji.
+
+### Istniejąca baza z poprzedniej wersji
+
+Dotyczy baz utworzonych przez `EnsureCreatedAsync` i ręczny SQL, bez historii migracji. Nie stosuj do nich pierwszej migracji wprost: próba ponownego utworzenia istniejących tabel zakończy się błędem. Sprawdzona procedura przejścia obejmowała:
+
+1. Pełną kopię zapasową `.bak` i odtworzenie pod nową nazwą `layZTicketsDb_MigrationTest`, z osobnymi plikami danych i logu.
+2. Porównanie danych oraz definicji tabel z `InitialSchema`: kolumn, typów, wymagalności, `IDENTITY`, kluczy, wartości domyślnych, kaskady i indeksów. Sprawdzono też brak powtarzających się niepustych numerów zgłoszeń.
+3. Po potwierdzeniu zgodności — utworzenie tabeli `__EFMigrationsHistory` i wpisanie `20261020162759_InitialSchema` z `ProductVersion = '8.0.27'`, bez wykonywania operacji tworzenia istniejących tabel.
+4. Zastosowanie `AddUniqueTicketNumberIndex` narzędziem EF z jawnym `--connection` do odtworzonej kopii.
+5. Sprawdzenie historii migracji, liczby rekordów i działania aplikacji na kopii.
+
+Definicję tabeli historii i właściwy wpis można odczytać ze skryptu wygenerowanego poleceniem:
+
+```powershell
+dotnet ef migrations script 0 InitialSchema --context AppDbContext
+```
+
+Generowanie tego skryptu nie wykonuje go w bazie. Przy rejestracji istniejącej struktury wykorzystuje się wyłącznie utworzenie historii i wpis pierwszej migracji, po sprawdzeniu bazy docelowej. Pełny skrypt zawiera również `CREATE TABLE` dla zgłoszeń i komentarzy. Ręczny wpis do historii nie weryfikuje ani nie naprawia struktury; jest specjalnym krokiem przejścia, a nie sposobem pomijania brakujących zmian. Pierwsza migracja pozostaje kompletna, aby nadal umożliwiała utworzenie nowej bazy.
+
+Przejście zostało sprawdzone na odtworzonej kopii. Nie potwierdzono zastosowania go do oryginalnej bazy.
+
+### Start aplikacji
 
 Profil HTTPS korzysta z lokalnego certyfikatu deweloperskiego. Jeśli nie jest jeszcze zaufany, skonfiguruj go:
 
@@ -115,17 +164,29 @@ dotnet run --project layZTickets.csproj --launch-profile https
 
 Profil `https` określa adresy `https://localhost:7261` i `http://localhost:5269`; aplikacja ma włączone przekierowanie HTTPS. Otwórz [listę zgłoszeń](https://localhost:7261/DisplayTickets) lub [formularz tworzenia](https://localhost:7261/CreateTicket). Strona `/` jest nadal stroną szablonową. Zatrzymanie aplikacji: `Ctrl+C`.
 
-### Stan weryfikacji i pierwsza próba
+### Stan weryfikacji
 
 | Sprawdzenie | Wynik na 20.10.2026 |
 | --- | --- |
 | `dotnet build layZTickets.sln --no-restore -v minimal` | Sukces, 0 błędów, 0 ostrzeżeń; użyto już dostępnych pakietów |
 | Przywrócenie pakietów w nowym środowisku | Niezweryfikowane |
-| Konfiguracja certyfikatu i uruchomienie profilu HTTPS | Niezweryfikowane |
-| Połączenie z SQL Server i operacje na danych | Niezweryfikowane |
-| Interakcje w przeglądarce | Niezweryfikowane |
+| Lokalne uruchomienie aplikacji | Potwierdzone przez użytkownika podczas ręcznych prób |
+| Konfiguracja certyfikatu od zera | Niezweryfikowana niezależnie |
+| Usunięcie SQL poprawiającego schemat ze stron | Agent potwierdził brak `EnsureCreatedAsync`, `EnsureTicketSchemaAsync` i ręcznego SQL w stronach zgłoszeń oraz poprawną kompilację |
+| Kopia zapasowa i odtworzenie | Użytkownik potwierdził 6 zgłoszeń i 8 komentarzy w oryginale oraz odtworzonej kopii |
+| Przejście istniejącej kopii na migracje | Użytkownik potwierdził oba wpisy w historii oraz nadal 6 zgłoszeń i 8 komentarzy po dodaniu indeksu |
+| Interfejs po zmianach obsługi bazy | Użytkownik potwierdził odczyt istniejących zgłoszeń i komentarzy, utworzenie nowego zgłoszenia, zapis odpowiedzi i notatki oraz daty aktualizacji |
+| Nowa baza utworzona wyłącznie migracjami | Użytkownik potwierdził 2 wpisy historii, 0 zgłoszeń i 0 komentarzy w `layZTicketsDb_FreshTest` |
+| Walidacja wymaganych pól | Użytkownik potwierdził wymaganie tytułu, opisu i zgłaszającego; pusty komentarz sprawdzony w ramach próby komentowania |
+| Nieistniejący identyfikator | Użytkownik potwierdził ekran „Nie znaleziono ticketu” dla `/DisplayTicket/777` |
+| Atomowość tworzenia zgłoszenia i numeru | Do poprawy: dwa zapisy bez wspólnej jawnej transakcji; próba awarii drugiego zapisu niewykonana |
+| Numeracja dla `Id` powyżej 9999 | Format C# nie obcina cyfr; scenariusz z bazą nie został sprawdzony |
 | Testy automatyczne | Brak projektu testowego |
 
-Pierwsza próba na osobnej bazie deweloperskiej powinna objąć utworzenie zgłoszenia, odnalezienie go na liście, otwarcie szczegółów oraz dodanie odpowiedzi i notatki. Po odświeżeniu sprawdź trwałość danych. Sprawdź też pusty formularz i adres szczegółów z nieistniejącym identyfikatorem. Notatka wewnętrzna na tym etapie nadal nie ma ochrony uprawnieniami.
+Przed zmianami użytkownik potwierdził tworzenie zgłoszeń, ich obecność na liście, szczegóły, odpowiedzi, notatki i trwałość po odświeżeniu. Po usunięciu kodu poprawiającego schemat powtórzył główne operacje na kopii po migracjach, potwierdzając poprawny odczyt, zapis i aktualizację daty. Próba pustej bazy potwierdza przygotowanie struktury, nie obejmowała jeszcze interfejsu tej bazy.
 
-Problemy diagnozuj od komunikatu i kontekstu: SDK/pakiety przy budowaniu, certyfikat i port przy uruchamianiu, a instancja SQL Server, uwierzytelnianie, uprawnienia i stan schematu przy otwieraniu stron zgłoszeń. Nie usuwaj istniejącej bazy jako pierwszego kroku naprawy.
+Wyniki operacji na danych pochodzą z ręcznych prób użytkownika w jego środowisku. Agent sprawdził kod, migracje, wygenerowany SQL i kompilację; nie wykonywał operacji na SQL Server ani niezależnych prób w przeglądarce. Zgodność liczby rekordów i odczyt przez interfejs nie stanowią pełnego automatycznego porównania wszystkich wartości. Nie potwierdzono odtworzenia całego środowiska na czystym komputerze. Notatka wewnętrzna nadal nie ma ochrony uprawnieniami.
+
+Ten sam scenariusz — utworzenie zgłoszenia, lista, szczegóły, odpowiedź, notatka, odświeżenie oraz walidacja i nieistniejący identyfikator — stanowi punkt odniesienia do ponownego sprawdzenia po zmianach obsługi bazy.
+
+Problemy diagnozuj od komunikatu i kontekstu: SDK/pakiety przy budowaniu, certyfikat i port przy uruchamianiu, a instancja SQL Server, uwierzytelnianie, uprawnienia, zastosowane migracje i stan schematu przy otwieraniu stron zgłoszeń. Przy błędzie `Instance failure` sprawdź również zapis nazwy instancji w danym formacie konfiguracji. Nie usuwaj istniejącej bazy jako pierwszego kroku naprawy.

@@ -203,8 +203,6 @@
         try
         {
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
-            await dbContext.Database.EnsureCreatedAsync();
-            await EnsureTicketSchemaAsync(dbContext);
 
             ticket = await dbContext.Tickets
                 .Include(ticket => ticket.Comments)
@@ -248,8 +246,6 @@
         try
         {
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
-            await dbContext.Database.EnsureCreatedAsync();
-            await EnsureTicketSchemaAsync(dbContext);
 
             var comment = new TicketComment
             {
@@ -319,28 +315,5 @@
 
         var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         return string.Concat(parts.Take(2).Select(part => char.ToUpperInvariant(part[0])));
-    }
-
-    private static async Task EnsureTicketSchemaAsync(AppDbContext dbContext)
-    {
-        await dbContext.Database.ExecuteSqlRawAsync(@"
-            IF COL_LENGTH('Tickets', 'TicketNumber') IS NULL
-            BEGIN
-                ALTER TABLE [Tickets] ADD [TicketNumber] nvarchar(16) NOT NULL CONSTRAINT [DF_Tickets_TicketNumber] DEFAULT N'';
-            END
-            ");
-
-        await dbContext.Database.ExecuteSqlRawAsync(@"
-            UPDATE [Tickets]
-            SET [TicketNumber] = CONCAT(N'IT-', RIGHT(CONCAT(N'0000', CONVERT(nvarchar(20), [Id])), 4))
-            WHERE [TicketNumber] IS NULL OR [TicketNumber] = N'';
-            ");
-
-        await dbContext.Database.ExecuteSqlRawAsync(@"
-            IF OBJECT_ID(N'TicketComments', N'U') IS NOT NULL AND COL_LENGTH('TicketComments', 'IsInternal') IS NULL
-            BEGIN
-                ALTER TABLE [TicketComments] ADD [IsInternal] bit NOT NULL CONSTRAINT [DF_TicketComments_IsInternal] DEFAULT CAST(0 AS bit);
-            END
-            ");
     }
 }

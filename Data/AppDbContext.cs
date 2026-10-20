@@ -18,7 +18,8 @@ public class AppDbContext : DbContext
     {
         modelBuilder.Entity<Ticket>()
             .Property(ticket => ticket.TicketNumber)
-            .HasMaxLength(16);
+            .HasMaxLength(16)
+            .HasDefaultValue(string.Empty);
 
         modelBuilder.Entity<Ticket>()
             .HasIndex(ticket => ticket.TicketNumber)

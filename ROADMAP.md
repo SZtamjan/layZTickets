@@ -8,17 +8,19 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 - Statusy: **do rozpoczęcia**, **w toku**, **wymaga weryfikacji**, **ukończony**. Obecność kodu nie oznacza ukończenia etapu.
 - Status aktualizujemy po faktycznej pracy i sprawdzeniach. Ukończenie wymaga spełnienia kryteriów funkcjonalnych i omówienia użytych mechanizmów z użytkownikiem, bez obowiązkowego egzaminu.
 - Szczegółowe wymagania funkcji ustalamy przed ich wdrażaniem. Ta roadmapa nie rozstrzyga jeszcze macierzy uprawnień, reguł przejść statusów ani polityki załączników.
-- Dokumentacja została przygotowana 20.10.2026. Kompilacja prototypu jest potwierdzona; działanie z bazą i w przeglądarce wymaga weryfikacji. Żaden etap nauki nie został jeszcze oznaczony jako ukończony.
+- Dokumentacja została przygotowana i zaktualizowana 20.10.2026. Agent potwierdził kod i kompilację, a użytkownik sprawdził podstawowe ścieżki w interfejsie, przejście kopii istniejącej bazy na migracje i utworzenie pustej bazy migracjami. Etap 1 jest ukończony w zakresie istniejącego środowiska, etap 2 jest w toku. Odtworzenie całego środowiska na czystym komputerze pozostaje do weryfikacji.
 
 ## 1. Poznanie i uruchomienie istniejącej aplikacji
 
-**Status:** do rozpoczęcia; istniejące ścieżki zgłoszeń wymagają weryfikacji.
+**Status:** ukończony — 20.10.2026; kompilacja potwierdzona przez agenta, lokalne próby funkcjonalne przez użytkownika.
 
 **Efekt:** lokalnie uruchomiony prototyp i wspólnie prześledzona droga tworzenia, odczytu oraz komentowania zgłoszenia.
 
 **Nauka:** komponent Razor i routing, binding, zdarzenia formularza, wykonanie kodu na serwerze, cykl życia komponentów, DI i fabryka kontekstu, async/await.
 
 **Praca:** zacząć od `CreateTicketAsync`, połączyć formularz z zapisem EF, następnie przeanalizować listę i szczegóły. Skonfigurować osobną bazę deweloperską i sprawdzić istniejące ścieżki przed refaktorem.
+
+**Wynik:** omówiono przepływ od formularza przez komponent serwerowy i EF do SQL Server, fabrykę kontekstów, śledzenie zmian oraz zapis i odczyt. Użytkownik potwierdził tworzenie zgłoszenia, listę, szczegóły, dodawanie odpowiedzi i notatek oraz trwałość danych po odświeżeniu. Sprawdził wymagane pola i ekran braku zgłoszenia dla `/DisplayTicket/777`. Szczegółowy zakres i ograniczenia weryfikacji znajdują się w README. Późniejsze przygotowanie kopii istniejącej bazy i nowej bazy migracjami opisano w etapie 2; odtworzenie całego środowiska od zera pozostaje do sprawdzenia.
 
 **Kryteria ukończenia:**
 
@@ -29,13 +31,17 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 ## 2. Uporządkowanie danych i zapisu
 
-**Status:** do rozpoczęcia.
+**Status:** w toku — migracje i usunięcie ręcznego SQL ze stron wykonane; pozostałe kryteria wymagają dalszej pracy.
 
 **Efekt:** kontrolowana ewolucja schematu i czytelna obsługa danych bez powielanego SQL w stronach.
 
 **Nauka:** model i relacje EF, LINQ, śledzenie encji, czas życia i zwalnianie kontekstu, migracje, indeksy oraz transakcje.
 
 **Praca:** najpierw ustalić stan istniejącej bazy i przygotować kopię danych; opracować przejście z `EnsureCreatedAsync` i ręcznego SQL do migracji. Wydzielić powieloną logikę operacji z komponentów w zakresie uzasadnionym projektem. Uporządkować nadawanie numerów i atomowość tworzenia zgłoszenia, bez przebudowy całej aplikacji.
+
+**Wykonano:** porównano udostępniony przez użytkownika schemat z modelem, uwzględniono domyślny pusty numer i przygotowano `InitialSchema` oraz `AddUniqueTicketNumberIndex`. Użytkownik wykonał backup i odtworzenie, zarejestrował punkt startowy na kopii, zastosował migrację indeksu i potwierdził zachowanie liczby rekordów (6 zgłoszeń, 8 komentarzy). Usunął `EnsureCreatedAsync` i powielone metody z SQL z trzech komponentów; agent sprawdził kod i kompilację. Użytkownik potwierdził działanie odczytu, tworzenia i komentowania oraz daty aktualizacji po zmianach. Potwierdził też utworzenie nowej bazy z obu migracji: 2 wpisy historii, 0 zgłoszeń i 0 komentarzy. Procedura i zakres weryfikacji są opisane w README.
+
+**Pozostało:** objąć utworzenie zgłoszenia i numeru wspólną transakcją oraz sprawdzić scenariusz niepowodzenia; zweryfikować numerację dla identyfikatorów powyżej 9999 i los istniejących pustych numerów. Logika operacji nadal znajduje się w komponentach — zakres ewentualnego wydzielenia wymaga osobnego małego zadania. Nie potwierdzono przejścia oryginalnej bazy na migracje ani pełnego automatycznego porównania danych; dotychczasowe próby dotyczą odtworzonej kopii i lokalnego środowiska.
 
 **Kryteria ukończenia:**
 
