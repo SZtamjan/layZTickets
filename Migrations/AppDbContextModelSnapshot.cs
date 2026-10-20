@@ -55,13 +55,6 @@ namespace layZTickets.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("TicketNumber")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)")
-                        .HasDefaultValue("");
-
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -70,10 +63,6 @@ namespace layZTickets.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("TicketNumber")
-                        .IsUnique()
-                        .HasFilter("[TicketNumber] <> ''");
 
                     b.ToTable("Tickets");
                 });

@@ -32,7 +32,7 @@
         <section class="ticket-hero">
             <div>
                 <div class="ticket-hero-meta">
-                    <span class="ticket-code">#@GetTicketNumber(ticket)</span>
+                    <span class="ticket-code">#@ticket.TicketNumber</span>
                     <span class="@GetStatusClass(ticket.Status)">
                         <span class="material-symbols-outlined" aria-hidden="true">fiber_manual_record</span>
                         @ticket.Status
@@ -283,13 +283,6 @@
     private static string FormatDate(DateTime? date)
     {
         return date?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "Brak";
-    }
-
-    private static string GetTicketNumber(Ticket ticket)
-    {
-        return string.IsNullOrWhiteSpace(ticket.TicketNumber)
-            ? $"IT-{ticket.Id:0000}"
-            : ticket.TicketNumber;
     }
 
     private static string GetStatusClass(string status)

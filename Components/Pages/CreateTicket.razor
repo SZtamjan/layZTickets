@@ -157,7 +157,6 @@
         try
         {
             ticketDraft.Status = "New";
-            ticketDraft.TicketNumber = string.Empty;
             ticketDraft.CreatedAt = DateTime.UtcNow;
             ticketDraft.UpdatedAt = null;
             ticketDraft.ClosedAt = null;
@@ -166,9 +165,6 @@
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
 
             dbContext.Tickets.Add(ticketDraft);
-            await dbContext.SaveChangesAsync();
-
-            ticketDraft.TicketNumber = FormatTicketNumber(ticketDraft.Id);
             await dbContext.SaveChangesAsync();
 
             successMessage = $"Ticket {ticketDraft.TicketNumber} został utworzony.";
@@ -199,10 +195,5 @@
             Status = "New",
             Priority = "Normal"
         };
-    }
-
-    private static string FormatTicketNumber(int id)
-    {
-        return $"IT-{id:0000}";
     }
 }

@@ -82,7 +82,7 @@
                             <tr>
                                 <td>
                                     <a class="ticket-id" href="@($"DisplayTicket/{ticket.Id}")">
-                                        #@GetTicketNumber(ticket)
+                                        #@ticket.TicketNumber
                                     </a>
                                 </td>
                                 <td>
@@ -179,13 +179,6 @@
 
         var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         return string.Concat(parts.Take(2).Select(part => char.ToUpperInvariant(part[0])));
-    }
-
-    private static string GetTicketNumber(Ticket ticket)
-    {
-        return string.IsNullOrWhiteSpace(ticket.TicketNumber)
-            ? $"IT-{ticket.Id:0000}"
-            : ticket.TicketNumber;
     }
 
     private static (string FirstName, string LastName) SplitReporterName(string reporter)

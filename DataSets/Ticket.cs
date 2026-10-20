@@ -1,9 +1,10 @@
-﻿namespace layZTickets.DataSets
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace layZTickets.DataSets
 {
     public class Ticket
     {
         public int Id { get; set; }
-        public string TicketNumber { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string Status { get; set; } = "New";
@@ -18,5 +19,8 @@
 
         public List<TicketComment> Comments { get; set; } = new();
         //public List<TicketHistory> History { get; set; } = new();
+
+        [NotMapped]
+        public string TicketNumber => $"IT-{Id}";
     }
 }

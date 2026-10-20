@@ -8,7 +8,7 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 - Statusy: **do rozpoczęcia**, **w toku**, **wymaga weryfikacji**, **ukończony**. Obecność kodu nie oznacza ukończenia etapu.
 - Status aktualizujemy po faktycznej pracy i sprawdzeniach. Ukończenie wymaga spełnienia kryteriów funkcjonalnych i omówienia użytych mechanizmów z użytkownikiem, bez obowiązkowego egzaminu.
 - Szczegółowe wymagania funkcji ustalamy przed ich wdrażaniem. Ta roadmapa nie rozstrzyga jeszcze macierzy uprawnień, reguł przejść statusów ani polityki załączników.
-- Dokumentacja została przygotowana i zaktualizowana 20.10.2026. Agent potwierdził kod i kompilację, a użytkownik sprawdził podstawowe ścieżki w interfejsie, przejście kopii istniejącej bazy na migracje i utworzenie pustej bazy migracjami. Etap 1 jest ukończony w zakresie istniejącego środowiska, etap 2 jest w toku. Odtworzenie całego środowiska na czystym komputerze pozostaje do weryfikacji.
+- Dokumentacja została przygotowana i zaktualizowana 20.10.2026. Użytkownik sprawdził podstawowe ścieżki w interfejsie, przejście kopii istniejącej bazy na migracje i utworzenie pustej bazy. Po uproszczeniu numeracji agent zastosował trzecią migrację do kopii, potwierdził zachowanie pozostałych danych, kompilację i odczyty HTTP. Etap 1 jest ukończony w zakresie istniejącego środowiska, etap 2 jest w toku. Odtworzenie całego środowiska na czystym komputerze pozostaje do weryfikacji.
 
 ## 1. Poznanie i uruchomienie istniejącej aplikacji
 
@@ -31,24 +31,28 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 ## 2. Uporządkowanie danych i zapisu
 
-**Status:** w toku — migracje i usunięcie ręcznego SQL ze stron wykonane; pozostałe kryteria wymagają dalszej pracy.
+**Status:** w toku — migracje, usunięcie ręcznego SQL i uproszczenie numeracji wykonane; końcowe próby aktualnej wersji wymagają weryfikacji.
 
 **Efekt:** kontrolowana ewolucja schematu i czytelna obsługa danych bez powielanego SQL w stronach.
 
 **Nauka:** model i relacje EF, LINQ, śledzenie encji, czas życia i zwalnianie kontekstu, migracje, indeksy oraz transakcje.
 
-**Praca:** najpierw ustalić stan istniejącej bazy i przygotować kopię danych; opracować przejście z `EnsureCreatedAsync` i ręcznego SQL do migracji. Wydzielić powieloną logikę operacji z komponentów w zakresie uzasadnionym projektem. Uporządkować nadawanie numerów i atomowość tworzenia zgłoszenia, bez przebudowy całej aplikacji.
+**Praca:** ustalić stan istniejącej bazy i przygotować kopię danych; przejść z `EnsureCreatedAsync` i ręcznego SQL do migracji. Wydzielić powieloną logikę w zakresie uzasadnionym projektem. Zgodnie z ustaloną decyzją numer jest wyliczany jako `IT-{Id}` bez zer wiodących i nie jest przechowywany w bazie; tworzenie zgłoszenia wymaga jednego zapisu, więc odpada potrzeba jawnej transakcji łączącej zapis rekordu z nadaniem numeru.
 
 **Wykonano:** porównano udostępniony przez użytkownika schemat z modelem, uwzględniono domyślny pusty numer i przygotowano `InitialSchema` oraz `AddUniqueTicketNumberIndex`. Użytkownik wykonał backup i odtworzenie, zarejestrował punkt startowy na kopii, zastosował migrację indeksu i potwierdził zachowanie liczby rekordów (6 zgłoszeń, 8 komentarzy). Usunął `EnsureCreatedAsync` i powielone metody z SQL z trzech komponentów; agent sprawdził kod i kompilację. Użytkownik potwierdził działanie odczytu, tworzenia i komentowania oraz daty aktualizacji po zmianach. Potwierdził też utworzenie nowej bazy z obu migracji: 2 wpisy historii, 0 zgłoszeń i 0 komentarzy. Procedura i zakres weryfikacji są opisane w README.
 
-**Pozostało:** objąć utworzenie zgłoszenia i numeru wspólną transakcją oraz sprawdzić scenariusz niepowodzenia; zweryfikować numerację dla identyfikatorów powyżej 9999 i los istniejących pustych numerów. Logika operacji nadal znajduje się w komponentach — zakres ewentualnego wydzielenia wymaga osobnego małego zadania. Nie potwierdzono przejścia oryginalnej bazy na migracje ani pełnego automatycznego porównania danych; dotychczasowe próby dotyczą odtworzonej kopii i lokalnego środowiska.
+**Uproszczenie numeracji:** użytkownik zmienił `TicketNumber` na właściwość `[NotMapped]` zwracającą `IT-{Id}`, usunął drugi zapis i powielone formatowanie. Agent zweryfikował zmiany, wygenerował `RemoveStoredTicketNumber` i zastosował ją do odtworzonej kopii po świeżym backupie i `RESTORE VERIFYONLY`. Potwierdził usunięcie kolumny oraz indeksu, 3 wpisy historii i zachowanie 7 zgłoszeń oraz 10 komentarzy. Porównanie SHA-256 objęło wszystkie pozostałe pola zgłoszeń i wszystkie pola komentarzy. Sprawdzono kompilację, brak zmian modelu poza migracją, właściwość dla `Id` 1, 9999, 10000 i `Int32.MaxValue` oraz odczyt listy i szczegółów przez HTTP z poprawnym formatem numerów. Historyczne zapisane numery zostały celowo usunięte; ich zawartość pozostaje w backupie.
+
+**Bazy robocza i zapasowa:** po zweryfikowanych backupach obu wersji i porównaniu danych aktualna baza otrzymała nazwę `layZTicketsDb`. Odtworzono `layZTicketsDb_backup` jako kopię tylko do odczytu. Obie mają 7 zgłoszeń, 10 komentarzy i trzy migracje w chwili porządkowania nazw; kopia nie odświeża się automatycznie. Starą bazę usunięto po potwierdzeniu zabezpieczenia i zachowania jej danych. Agent potwierdził odczyt aplikacji z domyślnej konfiguracji. Nazwy `_MigrationTest` i `_FreshTest` w poprzednich wynikach są historycznymi nazwami testów.
+
+**Pozostało:** powtórzyć interaktywne tworzenie i komentowanie po trzeciej migracji oraz utworzenie pustej bazy z aktualnymi trzema migracjami. Logika operacji nadal znajduje się w komponentach — zakres ewentualnego wydzielenia wymaga osobnego małego zadania. Próby dotyczą lokalnego środowiska.
 
 **Kryteria ukończenia:**
 
 - Udokumentowano i sprawdzono utworzenie pustej bazy oraz przejście na migracje na kopii istniejących danych, bez ich utraty.
 - Wejście na listę lub szczegóły nie tworzy ani nie zmienia schematu i nie uzupełnia danych.
 - Tworzenie, odczyt i komentowanie nadal działają po zmianach.
-- Numeracja jest spójna dla nowych i dotychczasowych rekordów, również dla identyfikatorów powyżej 9999; zapis zgłoszenia nie pozostawia częściowego rezultatu po niepowodzeniu nadania numeru.
+- Numer ma jeden format `IT-{Id}` dla nowych i dotychczasowych rekordów, również powyżej 9999; nie ma osobnej kolumny ani drugiego zapisu numeru. Sprawdzono utworzenie zgłoszenia jednym zapisem i wyliczenie numeru po otrzymaniu `Id`.
 - Omówiono granice odpowiedzialności komponentu, logiki operacji i kontekstu EF.
 
 ## 3. Pełniejsza obsługa zgłoszeń
