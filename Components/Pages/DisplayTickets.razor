@@ -69,11 +69,9 @@
                             <th scope="col">Tytuł Zgłoszenia</th>
                             <th scope="col">Status</th>
                             <th scope="col">Priorytet</th>
-                            <th scope="col">Imię</th>
-                            <th scope="col">Nazwisko</th>
+                            <th scope="col">Zgłaszający</th>
                             <th scope="col">Przypisany</th>
                             <th scope="col">Utworzono</th>
-                            <th scope="col" class="text-end">Akcje</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -82,14 +80,14 @@
                             var reporter = SplitReporterName(ticket.CreatedByUserId);
 
                             <tr>
-                                <td class="ticket-id">#@GetTicketNumber(ticket)</td>
+                                <td>
+                                    <a class="ticket-id" href="@($"DisplayTicket/{ticket.Id}")">
+                                        #@GetTicketNumber(ticket)
+                                    </a>
+                                </td>
                                 <td>
                                     <a class="ticket-title-stack" href="@($"DisplayTicket/{ticket.Id}")">
                                         <strong>@ticket.Title</strong>
-                                        <span>
-                                            <span class="material-symbols-outlined" aria-hidden="true">support_agent</span>
-                                            Zgłaszający
-                                        </span>
                                     </a>
                                 </td>
                                 <td>
@@ -101,8 +99,7 @@
                                         @ticket.Priority
                                     </span>
                                 </td>
-                                <td>@reporter.FirstName</td>
-                                <td>@reporter.LastName</td>
+                                <td>@reporter.FirstName @reporter.LastName</td>
                                 <td>
                                     <div class="agent-cell">
                                         <span>@GetInitials(ticket.AssignedAgentId)</span>
@@ -110,11 +107,6 @@
                                     </div>
                                 </td>
                                 <td>@ticket.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
-                                <td class="text-end">
-                                    <a class="desk-icon-link" href="@($"DisplayTicket/{ticket.Id}")" title="Pokaż szczegóły">
-                                        <span class="material-symbols-outlined" aria-hidden="true">open_in_new</span>
-                                    </a>
-                                </td>
                             </tr>
                         }
                     </tbody>

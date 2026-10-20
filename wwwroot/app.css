@@ -261,6 +261,11 @@ a,
     font-family: "JetBrains Mono", Consolas, monospace;
     font-size: 13px;
     font-weight: 700;
+    text-decoration: none;
+}
+
+.ticket-id:hover {
+    text-decoration: underline;
 }
 
 .ticket-title-stack {
