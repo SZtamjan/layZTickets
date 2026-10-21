@@ -35,11 +35,21 @@
                     <span class="ticket-code">#@ticket.TicketNumber</span>
                     <span class="detail-chip">
                         <span class="material-symbols-outlined" aria-hidden="true">fiber_manual_record</span>
-                        @ticket.Status
+                        <InputSelect id="ticket-priority" class="desk-input" @bind-Value:get="ticket.Status" @bind-Value:set="ChangeStatus" disabled="@isUpdating">
+                            <option value="@TicketStatus.New">Nowe</option>
+                            <option value="@TicketStatus.InProgress">W trakcie</option>
+                            <option value="@TicketStatus.Pending">Oczekujące</option>
+                            <option value="@TicketStatus.Closed">Zamknięte</option>
+                        </InputSelect>
                     </span>
                     <span class="detail-chip">
                         <span class="material-symbols-outlined" aria-hidden="true">priority_high</span>
-                        @ticket.Priority
+                        <InputSelect id="ticket-priority" class="desk-input" @bind-Value:get="ticket.Priority" @bind-Value:set="ChangePriority" disabled="@isUpdating">
+                            <option value="@TicketPriority.Low">Niski</option>
+                            <option value="@TicketPriority.Normal">Normalny</option>
+                            <option value="@TicketPriority.High">Wysoki</option>
+                            <option value="@TicketPriority.Highest">Najwyższy</option>
+                        </InputSelect>
                     </span>
                 </div>
                 <h1>@ticket.Title</h1>
@@ -190,6 +200,7 @@
 
     private TicketData? ticket;
     private bool isLoading = true;
+    private bool isUpdating = false;
     private bool isAddingComment;
     private string commentAuthor = "Agent IT";
     private string commentContent = string.Empty;
@@ -220,6 +231,104 @@
         finally
         {
             isLoading = false;
+        }
+    }
+
+    private async Task ChangeStatus(TicketStatus newStatus)
+    {
+        if (TicketId is null || ticket is null)
+        {
+            commentErrorMessage = "Nie wybrano ticketu.";
+            return;
+        }
+
+        if (!Enum.IsDefined(newStatus))
+        {
+            commentErrorMessage = "Wybierz prawidłowy Status.";
+            return;
+        }
+
+        isUpdating = true;
+
+        try
+        {
+            await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+
+            var ticketToUpdate = await dbContext.Tickets.FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
+
+            if (ticketToUpdate is not null)
+            {
+                ticketToUpdate.UpdatedAt = DateTime.UtcNow;
+                ticketToUpdate.Status = newStatus;
+            }
+            else
+            {
+                errorMessage = "Zgłoszenie już nie istnieje.";
+                return;
+            }
+
+            await dbContext.SaveChangesAsync();
+
+            ticket.UpdatedAt = ticketToUpdate?.UpdatedAt ?? ticket.UpdatedAt;
+            ticket.Status = newStatus;
+
+        }
+        catch (Exception exception)
+        {
+            errorMessage = $"Nie udało się pobrać ticketu: {exception.Message}";
+        }
+        finally
+        {
+            isUpdating = false;
+        }
+    }
+
+    private async Task ChangePriority(TicketPriority newPriority)
+    {
+        if (TicketId is null || ticket is null)
+        {
+            commentErrorMessage = "Nie wybrano ticketu.";
+            return;
+        }
+
+        if (!Enum.IsDefined(newPriority))
+        {
+            commentErrorMessage = "Wybierz prawidłowy priorytet.";
+            return;
+        }
+
+        isUpdating = true;
+
+        try
+        {
+            await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+
+            var ticketToUpdate = await dbContext.Tickets.FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
+
+            if (ticketToUpdate is not null)
+            {
+                ticketToUpdate.UpdatedAt = DateTime.UtcNow;
+                ticketToUpdate.Priority = newPriority;
+            }
+            else
+            {
+                errorMessage = "Zgłoszenie już nie istnieje.";
+                return;
+            }
+
+            await dbContext.SaveChangesAsync();
+
+            ticket.UpdatedAt = ticketToUpdate?.UpdatedAt ?? ticket.UpdatedAt;
+            ticket.Priority = newPriority;
+
+        }
+        catch (Exception exception)
+        {
+            errorMessage = $"Nie udało się pobrać ticketu: {exception.Message}";
+        }
+        finally
+        {
+            isUpdating = false;
         }
     }
 
