@@ -33,11 +33,11 @@
             <div>
                 <div class="ticket-hero-meta">
                     <span class="ticket-code">#@ticket.TicketNumber</span>
-                    <span class="@GetStatusClass(ticket.Status)">
+                    <span class="detail-chip">
                         <span class="material-symbols-outlined" aria-hidden="true">fiber_manual_record</span>
                         @ticket.Status
                     </span>
-                    <span class="@GetPriorityClass(ticket.Priority)">
+                    <span class="detail-chip">
                         <span class="material-symbols-outlined" aria-hidden="true">priority_high</span>
                         @ticket.Priority
                     </span>
@@ -287,20 +287,6 @@
     private static string FormatDate(DateTime? date)
     {
         return date?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "Brak";
-    }
-
-    private static string GetStatusClass(string status)
-    {
-        return status.Equals("New", StringComparison.OrdinalIgnoreCase) || status.Equals("Nowe", StringComparison.OrdinalIgnoreCase)
-            ? "detail-chip detail-status"
-            : "detail-chip";
-    }
-
-    private static string GetPriorityClass(string priority)
-    {
-        return priority.Equals("Critical", StringComparison.OrdinalIgnoreCase) || priority.Equals("High", StringComparison.OrdinalIgnoreCase)
-            ? "detail-chip detail-priority"
-            : "detail-chip";
     }
 
     private static string GetInitials(string value)

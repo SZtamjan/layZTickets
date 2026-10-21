@@ -9,7 +9,8 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 - Statusy: **do rozpoczęcia**, **w toku**, **wymaga weryfikacji**, **ukończony**. Obecność kodu nie oznacza ukończenia etapu.
 - Status aktualizujemy po faktycznej pracy i sprawdzeniach. Ukończenie wymaga spełnienia kryteriów funkcjonalnych i omówienia użytych mechanizmów z użytkownikiem, bez obowiązkowego egzaminu.
 - Szczegółowe wymagania funkcji ustalamy przed ich wdrażaniem. Ta roadmapa nie rozstrzyga jeszcze macierzy uprawnień, reguł przejść statusów ani polityki załączników.
-- Dokumentacja zaktualizowana 21.10.2026. Etap 1 jest ukończony w zakresie istniejącego środowiska. W etapie 2 pozostała próba pustej bazy z aktualnego zestawu czterech migracji. Etap 3 jest w toku: użytkownik potwierdził działanie kategorii po migracji i odrzucenie wartości spoza enuma; następna funkcja to zmiana statusu. Odtworzenie całego środowiska na czystym komputerze pozostaje do weryfikacji.
+- Zakres obsługi zgłoszeń: treść wysłanego zgłoszenia, komentarzy i notatek pozostaje bez edycji. Status i priorytet będą zmieniane osobnymi listami rozwijanymi w szczegółach, z zapisem po wyborze, bez osobnego przycisku zapisu. Po wdrożeniu kont „Przypisz do mnie” od razu zapisze przypisanie do zalogowanej osoby. Są to planowane funkcje, nie opis obecnego działania.
+- Dokumentacja zaktualizowana 21.10.2026. Etap 1 jest ukończony w zakresie istniejącego środowiska. W etapie 2 pozostała próba pustej bazy z aktualnego zestawu pięciu migracji. Etap 3 jest w toku: użytkownik potwierdził działanie kategorii po migracji i odrzucenie wartości spoza enuma; statusy i priorytety przeniesiono na enumy z zapisem liczbowym. Następna funkcja to zmiana statusu po wyborze z listy. Odtworzenie całego środowiska na czystym komputerze pozostaje do weryfikacji.
 
 ## 1. Poznanie i uruchomienie istniejącej aplikacji
 
@@ -48,7 +49,7 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 **Dalsza weryfikacja:** po trzeciej migracji użytkownik potwierdził tworzenie i komentowanie wynikiem 8 zgłoszeń i 12 komentarzy. 21.10.2026 wygenerował `AddTicketCategory`; agent sprawdził, że dodaje wyłącznie kolumnę `Category` typu `int` z wartością domyślną `0`, bez odtwarzania tabel po zmianie klasy `Ticket` na `TicketData`. Kompilacja przeszła bez błędów i ostrzeżeń, a użytkownik potwierdził poprawne działanie kategorii po migracji.
 
-**Pozostało:** utworzenie pustej bazy z aktualnymi czterema migracjami. Logika operacji nadal znajduje się w komponentach — zakres ewentualnego wydzielenia wymaga osobnego małego zadania. Próby dotyczą lokalnego środowiska.
+**Pozostało:** utworzenie pustej bazy z aktualnymi pięcioma migracjami. Logika operacji nadal znajduje się w komponentach — zakres ewentualnego wydzielenia wymaga osobnego małego zadania. Próby dotyczą lokalnego środowiska.
 
 **Kryteria ukończenia:**
 
@@ -60,25 +61,28 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 ## 3. Pełniejsza obsługa zgłoszeń
 
-**Status:** w toku — zapis, odczyt i walidacja kategorii sprawdzone przez użytkownika 21.10.2026; polskie nazwy dodane w kodzie. Pozostają drobne poprawki tekstów, zmiana statusu i edycja.
+**Status:** w toku — zapis, odczyt i walidacja kategorii sprawdzone przez użytkownika 21.10.2026; polskie nazwy dodane w kodzie. Pozostają drobne poprawki tekstów oraz zmiana statusu i priorytetu z zapisem po wyborze.
 
-**Efekt:** działająca edycja zgłoszenia oraz obsługa kategorii, priorytetów i statusów.
+**Efekt:** zapisywana kategoria przy tworzeniu oraz niezależna zmiana statusu i priorytetu w szczegółach zgłoszenia, z zapisem do bazy od razu po wyborze z listy rozwijanej.
 
-**Nauka:** modele formularzy, walidacja, reguły biznesowe, wartości słownikowe i znaczenie dat aktualizacji/zamknięcia.
+**Nauka:** binding i zdarzenia zmiany wartości, asynchroniczny zapis pojedynczego pola, walidacja, reguły biznesowe, wartości słownikowe, obsługa błędów zapisu i znaczenie dat aktualizacji/zamknięcia.
 
-**Praca:** ustalić wymagane pola, dozwolone wartości i przejścia statusów; zapisywać kategorię, dodać edycję, zmianę priorytetu i statusu oraz konsekwentną aktualizację dat. To nadal etap lokalnego prototypu przed dodaniem kontroli dostępu.
+**Praca:** ustalić wymagane pola, dozwolone wartości i przejścia statusów; zapisywać kategorię przy tworzeniu. W szczegółach dodać osobne listy rozwijane statusu i priorytetu. Każdy wybór uruchamia operację na serwerze, która sprawdza reguły i zapisuje odpowiednie pole wraz z wymaganymi datami. Nie ma osobnego przycisku „Zapisz” ani formularza edycji treści zgłoszenia, komentarzy lub notatek. Usunąć nieaktywny przycisk „Edytuj”, a przycisk „Zmień status” zastąpić listą. To nadal etap lokalnego prototypu przed dodaniem kontroli dostępu.
 
 **Kategorie — wykonano:** dodano enum `TicketCategory` z jawnymi wartościami `Other = 0`, `Hardware = 1`, `Software = 2`, `Network = 3` i właściwość `TicketData.Category`. `InputRadioGroup` wiąże wybór z modelem, a dotychczasowe `SaveChangesAsync` zapisuje kategorię jako `int`. Migracja `20261021100725_AddTicketCategory` dodaje kolumnę do `Tickets` i nadaje istniejącym rekordom `0` (`Other`). Szczegóły wyświetlają wartość enuma. Użytkownik potwierdził poprawne działanie po migracji; agent zweryfikował kod i kompilację, bez własnej próby interaktywnej ani odczytu bazy po tej migracji. Omówiono binding, mapowanie enuma i różnicę między generowaniem a zastosowaniem migracji.
 
 **Walidacja i nazwy kategorii:** dodano `Enum.IsDefined` z komunikatem i przerwaniem operacji przed dostępem do bazy oraz `GetCategoryName` mapujące cztery wartości na polskie nazwy. Agent potwierdził kompilację bez błędów i ostrzeżeń. Użytkownik wymusił `(TicketCategory)9999`, potwierdził komunikat i brak nowego zgłoszenia. Testowe przypisanie usunięto. Pozostają poprawki „Karegoria” na „Kategoria”, „Incorrect category” na „Nieznana kategoria” i sprawdzenie wyświetlania polskich nazw.
 
-**Najbliższe zadania:** uzgodnić przejścia statusów, w tym ponowne otwarcie, oraz reguły `UpdatedAt` i `ClosedAt`, zaimplementować zmianę statusu, a później edycję zgłoszenia. Sprawdzenia reguł wykonujemy przy odpowiednich funkcjach.
+**Enumy statusu i priorytetu — wykonano:** użytkownik dodał `TicketStatus` (`New = 0`, `InProgress = 1`, `Pending = 2`, `Closed = 3`) i `TicketPriority` (`Low = 0`, `Normal = 1`, `High = 2`, `Highest = 3`) oraz dostosował model i referencje. Agent wygenerował `20261021122842_ConvertTicketStatusAndPriorityToEnums`, dodał jawne mapowanie istniejących nazw, w tym `Critical` na `Highest = 3`, i zastosował migrację do `layZTicketsDb`. Poprawił też opcje priorytetu w formularzu tworzenia, aby korzystały z obecnego enuma. Potwierdzono typ `int` obu kolumn, 5 migracji, zachowanie 9 zgłoszeń i 12 komentarzy oraz zgodność skrótów SHA-256 wszystkich pól po uwzględnieniu konwersji. Kompilacja przeszła bez błędów i ostrzeżeń; model jest zgodny ze snapshotem. Nie wykonywano interaktywnego wysłania formularza po migracji ani jej cofania. Zapis statusu i priorytetu po wyborze z listy nadal pozostaje do implementacji; reguły przejść nie są jeszcze uzgodnione.
+
+**Najbliższe zadania:** uzgodnić przejścia statusów, w tym ponowne otwarcie, oraz reguły `UpdatedAt` i `ClosedAt`. Zaimplementować zapis statusu po wyborze z listy, następnie analogiczny zapis priorytetu z aktualizacją `UpdatedAt`. Ustalić zachowanie wyboru tej samej wartości i obsługę kolejnych zmian podczas trwającego zapisu. Sprawdzenia reguł wykonujemy przy odpowiednich funkcjach.
 
 **Kryteria ukończenia:**
 
-- Każda z tych operacji zapisuje wynik widoczny po ponownym odczycie.
+- Kategoria wybrana przy tworzeniu pozostaje po ponownym odczycie. Status i priorytet zapisują się niezależnie, od razu po wyborze z listy, bez osobnego zatwierdzania; zmiana jednego pola nie nadpisuje pozostałych pól zgłoszenia.
 - Nieprawidłowe dane i niedozwolone przejścia są odrzucane przez logikę po stronie serwera.
-- Daty odpowiadają uzgodnionym regułom; błędy nie niszczą formularza ani zapisanych danych.
+- Daty odpowiadają uzgodnionym regułom. Interfejs sygnalizuje trwający zapis i błąd; po nieudanej operacji nie przedstawia niezapisanej wartości jako zapisanej. Kolejne wybory podczas zapisu nie prowadzą do rozbieżności z bazą.
+- Treść wysłanego zgłoszenia, komentarzy i notatek pozostaje bez edycji; nie ma nieaktywnego przycisku „Edytuj”.
 - Najważniejsze reguły mają odpowiednie testy; użytkownik rozumie różnicę między walidacją formularza a regułą biznesową.
 
 ## 4. Konta, role i granice dostępu
@@ -89,14 +93,15 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 **Nauka:** uwierzytelnianie a autoryzacja, tożsamość użytkownika, role/polityki, dostęp do konkretnego rekordu i obsługa kont.
 
-**Praca:** przed implementacją uzgodnić macierz uprawnień i sposób tworzenia kont. Powiązać autorów i przypisania z kontami, ustalając los dotychczasowych tekstowych danych. Zaimplementować przydzielanie zgłoszeń oraz przypisanie do siebie zgodnie z macierzą. Chronić notatki wewnętrzne także przy pobieraniu danych.
+**Praca:** przed implementacją uzgodnić macierz uprawnień i sposób tworzenia kont. Powiązać autorów i przypisania z kontami, ustalając los dotychczasowych tekstowych danych. Zaimplementować przydzielanie zgłoszeń zgodnie z macierzą. Kliknięcie „Przypisz do mnie” od razu uruchamia zapis przypisania w bazie; serwer ustala identyfikator zalogowanej osoby i sprawdza jej uprawnienia. Ustalić zasady przejęcia już przypisanego zgłoszenia i aktualizacji daty. Chronić notatki wewnętrzne także przy pobieraniu danych. Objąć uprawnieniami również zmianę statusu i priorytetu.
 
 **Kryteria ukończenia:**
 
 - Logowanie i wylogowanie działają, a przykładowe dane profilu zastąpiono rzeczywistą tożsamością.
 - Dla każdej roli sprawdzono dozwolone i zabronione odczyty oraz zapisy, w tym wejście bezpośrednio na adres obcego zgłoszenia.
 - Nieuprawniona osoba nie otrzymuje treści notatki wewnętrznej; samo ukrycie elementu UI nie wystarcza.
-- Przypisania są trwałe, a autor operacji wynika z konta zamiast dowolnego tekstu z formularza.
+- „Przypisz do mnie” zapisuje przypisanie do zalogowanej osoby bez dodatkowego zatwierdzenia; wynik pozostaje po odświeżeniu. Identyfikator pochodzi z tożsamości na serwerze, a nie z dowolnego tekstu z formularza.
+- Serwer egzekwuje uzgodnione uprawnienia do przypisywania oraz zmian statusu i priorytetu. Błąd zapisu przypisania jest widoczny w interfejsie.
 - Najważniejsze granice dostępu mają testy, a sposób konfiguracji kont jest udokumentowany.
 
 ## 5. Wyszukiwanie, załączniki i dashboard

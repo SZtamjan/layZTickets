@@ -102,10 +102,10 @@
                     <div>
                         <label for="ticket-priority">Priorytet</label>
                         <InputSelect id="ticket-priority" class="desk-input" @bind-Value="ticketDraft.Priority">
-                            <option value="Low">Niski (Informacyjne)</option>
-                            <option value="Normal">Normalny (Standardowe zgłoszenie)</option>
-                            <option value="High">Wysoki (Krytyczna awaria)</option>
-                            <option value="Critical">Pilny (Praca wstrzymana)</option>
+                            <option value="@TicketPriority.Low">Niski (Informacyjne)</option>
+                            <option value="@TicketPriority.Normal">Normalny (Standardowe zgłoszenie)</option>
+                            <option value="@TicketPriority.High">Wysoki (Krytyczna awaria)</option>
+                            <option value="@TicketPriority.Highest">Pilny (Praca wstrzymana)</option>
                         </InputSelect>
                     </div>
 
@@ -154,7 +154,7 @@
 
         try
         {
-            ticketDraft.Status = "New";
+            ticketDraft.Status = TicketStatus.New;
             ticketDraft.CreatedAt = DateTime.UtcNow;
             ticketDraft.UpdatedAt = null;
             ticketDraft.ClosedAt = null;
@@ -196,8 +196,8 @@
     {
         return new TicketData
         {
-            Status = "New",
-            Priority = "Normal"
+            Status = TicketStatus.New,
+            Priority = TicketPriority.Normal
         };
     }
 }

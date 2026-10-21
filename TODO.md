@@ -4,29 +4,39 @@ Krótka lista do odhaczania zamiast osobnego narzędzia do zadań. Kolejność p
 
 Pracujemy nad jednym punktem naraz. Zaznacz `[x]` dopiero po sprawdzeniu opisanego efektu. Szczegółowe kryteria etapów i ich statusy są w [ROADMAP.md](ROADMAP.md).
 
+Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek. Status i priorytet zmieniamy osobnymi listami rozwijanymi, a wybór od razu uruchamia zapis w bazie przez kod serwera. Po dodaniu kont „Przypisz do mnie” zapisze zalogowaną osobę po jednym kliknięciu.
+
 ## Teraz
 
-- [ ] **Zmiana statusu** — najbliższa sesja · etap 3
+- [ ] **Status — lista rozwijana z zapisem po wyborze** — najbliższa sesja · etap 3
 
-  Uzgodnić statusy i dozwolone przejścia, w tym ponowne otwarcie zgłoszenia, oraz reguły `UpdatedAt` i `ClosedAt`. Przejścia sprawdzać na serwerze; status i daty muszą pozostać po ponownym odczycie.
+  Uzgodnić statusy i dozwolone przejścia, w tym ponowne otwarcie zgłoszenia, oraz reguły `UpdatedAt` i `ClosedAt`. Zastąpić przycisk „Zmień status” listą rozwijaną. Wybór zapisuje status i wymagane daty bez dodatkowego przycisku zapisu. Serwer sprawdza przejście; wynik pozostaje po ponownym odczycie. Pokazać trwający zapis i błąd oraz obsłużyć kolejne wybory podczas zapisu.
 
 ## Następne sesje
+
+- [ ] **Priorytet — lista rozwijana z zapisem po wyborze** — kolejna sesja · etap 3
+
+  W szczegółach wybór priorytetu od razu zapisuje go w bazie i aktualizuje `UpdatedAt`, bez osobnego zatwierdzania. Serwer sprawdza dozwoloną wartość; zmiana nie nadpisuje statusu ani pozostałych pól. Wynik pozostaje po odświeżeniu, a interfejs obsługuje trwający zapis, błąd i kolejne wybory.
 
 - [ ] **Drobne poprawki tekstów kategorii** — etap 3
 
   W szczegółach poprawić „Karegoria” na „Kategoria” i „Incorrect category” na „Nieznana kategoria”; sprawdzić wyświetlanie polskich nazw dodanych w `GetCategoryName`.
 
-- [ ] **Edycja zgłoszenia** — kolejna sesja · etap 3
+- [ ] **Usunięcie przycisku „Edytuj”** — etap 3
 
-  Można zmienić tytuł, opis, kategorię i priorytet. Poprawny zapis aktualizuje datę modyfikacji, a nieprawidłowe dane są odrzucane. Zmiany pozostają po odświeżeniu.
+  Usunąć nieaktywny przycisk ze szczegółów zgodnie z zakresem bez edycji treści zgłoszenia, komentarzy i notatek. Zmiany statusu i priorytetu mają własne listy rozwijane.
 
 ## Pozostała weryfikacja techniczna
 
 - [ ] **Pusta baza z pełnego zestawu migracji** — etap 2
 
-  Sprawdzić utworzenie osobnej pustej bazy z aktualnych czterech migracji, w tym kolumny `Category`. Wcześniejsza próba obejmowała tylko dwie pierwsze migracje.
+  Sprawdzić utworzenie osobnej pustej bazy z aktualnych pięciu migracji, w tym kolumny `Category` i liczbowych kolumn `Status` oraz `Priority`. Wcześniejsza próba obejmowała tylko dwie pierwsze migracje.
 
 ## Wykonane
+
+- [x] **Enumy statusów i priorytetów — migracja bazy** — 21.10.2026 · etap 3
+
+  Model korzysta z `TicketStatus` i `TicketPriority`, a kolumny `Status` i `Priority` mają typ `int`. Agent zastosował `ConvertTicketStatusAndPriorityToEnums` do `layZTicketsDb`, zachowując 9 zgłoszeń i 12 komentarzy; dawne `Critical` mapuje się na `Highest = 3`. Zweryfikowano dane skrótami SHA-256, historię 5 migracji, kompilację i zgodność modelu ze snapshotem. Opcje priorytetu formularza tworzenia dostosowano do enuma. Próba interaktywna formularza po migracji pozostaje do wykonania przy dalszej pracy. Same zmiany statusu i priorytetu po wyborze z listy nie są jeszcze zaimplementowane.
 
 - [x] **Kategorie — zapis i odczyt** — 21.10.2026 · etap 3 roadmapy
 
@@ -44,7 +54,7 @@ Pracujemy nad jednym punktem naraz. Zaznacz `[x]` dopiero po sprawdzeniu opisane
 
 - [ ] **Uprawnienia i przypisywanie** — kolejny większy blok · etap 4
 
-  Użytkownik ma dostęp do własnych zgłoszeń, a agent działa zgodnie z uzgodnionymi uprawnieniami. Przypisanie zgłoszenia zapisuje się. Serwer chroni cudze zgłoszenia i treść notatek wewnętrznych również przy wejściu bezpośrednio na adres szczegółów.
+  Użytkownik ma dostęp do własnych zgłoszeń, a agent i administrator działają zgodnie z uzgodnionymi uprawnieniami. „Przypisz do mnie” od razu zapisuje przypisanie do osoby zalogowanej, której identyfikator serwer odczytuje z konta. Uzgodnić zasady przejęcia już przypisanego zgłoszenia i daty aktualizacji. Przypisanie pozostaje po odświeżeniu, a błędy są widoczne. Serwer sprawdza także uprawnienia do zmian statusu i priorytetu oraz chroni cudze zgłoszenia i notatki wewnętrzne przy wejściu bezpośrednio na adres szczegółów.
 
 - [ ] **Wyszukiwanie, filtry i paginacja** — potem · etap 5
 

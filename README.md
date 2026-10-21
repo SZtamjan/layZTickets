@@ -28,8 +28,9 @@ Stan analizy i weryfikacji: **21 października 2026 r.** Poniższa tabela opisuj
 | Tworzenie zgłoszenia | Formularz, sprawdzanie wymaganych pól, jeden zapis do bazy, priorytet i tekstowo wpisywani zgłaszający oraz agent; numer `IT-{Id}` wyliczany w C# bez zer wiodących |
 | Lista zgłoszeń | Odczyt 10 najnowszych rekordów i przejście do szczegółów |
 | Szczegóły i komentarze | Odczyt zgłoszenia z komentarzami; zapis odpowiedzi i notatek z flagą `IsInternal` |
-| Schemat bazy | Cztery migracje EF Core; strony nie tworzą ani nie aktualizują schematu; `TicketNumber` nie jest kolumną bazy |
+| Schemat bazy | Pięć migracji EF Core; strony nie tworzą ani nie aktualizują schematu; `TicketNumber` nie jest kolumną bazy |
 | Kategorie | Cztery wartości enuma `TicketCategory`; wybór w formularzu zapisuje się jako `int`, serwer sprawdza dozwoloną wartość przez `Enum.IsDefined`, szczegóły mapują ją na polską nazwę przez `GetCategoryName`; pozostają drobne poprawki tekstów |
+| Statusy i priorytety | `TicketStatus` i `TicketPriority` przechowywane jako `int`; zmiana istniejącego zgłoszenia po wyborze z listy pozostaje do implementacji |
 | Edycja, zmiana statusu, przypisanie do siebie | Przyciski bez obsługi tych operacji; tekstowe przypisanie można podać przy tworzeniu |
 | Filtry, wyszukiwarka, paginacja | Elementy interfejsu bez zaimplementowanej logiki |
 | Załączniki | Makieta interfejsu, bez przesyłania i przechowywania plików |
@@ -53,7 +54,7 @@ Stan analizy i weryfikacji: **21 października 2026 r.** Poniższa tabela opisuj
 | `Components/Pages/` | Strony, formularze i obecna logika operacji na zgłoszeniach |
 | `Components/Layout/`, `Components/App.razor`, `Components/Routes.razor` | Układ, dokument HTML i routing |
 | `Data/AppDbContext.cs` | Zestawy encji i konfiguracja modelu EF |
-| `DataSets/` | Modele `TicketData` i `TicketComment` oraz enum `TicketCategory` |
+| `DataSets/` | Modele `TicketData` i `TicketComment` oraz enumy `TicketCategory`, `TicketStatus` i `TicketPriority` |
 | `Migrations/` | Zmiany struktury bazy, metadane migracji i snapshot modelu, czyli jego zapis do porównania przy kolejnych zmianach |
 | `dotnet-tools.json` | Manifest lokalnego narzędzia `dotnet-ef` w wersji 8.0.27 |
 | `Components/Services/SaveService/`, `App_Data/` | Serwis i pliki JSON; licznik zapisuje tam swój stan, zgłoszenia korzystają z SQL Server |
@@ -138,10 +139,13 @@ dotnet build layZTickets.sln --no-restore
 | `20261020163451_AddUniqueTicketNumberIndex` | Unikalny indeks `IX_Tickets_TicketNumber` obejmujący niepuste numery |
 | `20261020184200_RemoveStoredTicketNumber` | Usunięcie indeksu i kolumny `TicketNumber`; aktualny numer jest wyliczany z `Id` w C# |
 | `20261021100725_AddTicketCategory` | Kolumna `Tickets.Category` typu `int`, wymagana, z wartością domyślną `0` (`Other`) dla istniejących zgłoszeń |
+| `20261021122842_ConvertTicketStatusAndPriorityToEnums` | Konwersja `Status` i `Priority` z tekstu na `int` zgodnie z enumami; dawne `Critical` odpowiada `Highest = 3` |
 
 Migracje opisują kolejne decyzje projektowe: pierwsza tworzyła kolumnę numeru, druga dodała indeks, a trzecia usuwa obie struktury. Po zastosowaniu wszystkich trzech baza nie przechowuje numeru zgłoszenia. `Down()` trzeciej migracji przywraca kolumnę z pustymi wartościami i indeks, ale nie odtwarza historycznej zawartości usuniętej kolumny; przed jej usunięciem wykonano i zweryfikowano backup kopii bazy.
 
 Czwarta migracja dodaje kategorię: `Other = 0` (Inne), `Hardware = 1` (Sprzęt), `Software = 2` (Oprogramowanie), `Network = 3` (Sieć). W modelu C# jest to enum, w SQL Server liczba całkowita. `InputRadioGroup` aktualizuje `ticketDraft.Category`, a zapis zgłoszenia obejmuje tę właściwość bez osobnego przypisania. Znaczenie zapisanych wartości liczbowych enuma powinno pozostać stałe.
+
+Piąta migracja mapuje tekstowe statusy na `New = 0`, `InProgress = 1`, `Pending = 2`, `Closed = 3`, a priorytety na `Low = 0`, `Normal = 1`, `High = 2`, `Highest = 3`. Najpierw zamienia nazwy na tekstowe liczby, a następnie zmienia typ obu kolumn na `int` w transakcji migracji. Dawne `Critical` oraz tekstowe `Highest` oznaczają wartość `3`; nierozpoznana wartość przerywa migrację. `Down()` przywraca tekstowe nazwy, używając dawnego `Critical` dla najwyższego priorytetu. Formularz tworzenia korzysta z nazw obecnego enuma, w tym `Highest` zamiast `Critical`.
 
 Dla nowej bazy, po ustawieniu przykładowego połączenia powyżej:
 
@@ -163,7 +167,7 @@ Dotyczy baz utworzonych przez `EnsureCreatedAsync` i ręczny SQL, bez historii m
 4. Zastosowanie `AddUniqueTicketNumberIndex` narzędziem EF z jawnym `--connection` do odtworzonej kopii.
 5. Sprawdzenie historii migracji, liczby rekordów i działania aplikacji na kopii.
 
-Po późniejszej decyzji o wyliczaniu numeru wykonano świeży backup kopii i zastosowano `RemoveStoredTicketNumber`. Potwierdzono zachowanie wszystkich pozostałych danych zgłoszeń i komentarzy. Dla bazy mającej już dwie pierwsze migracje zwykłe `database update` stosuje brakujące migracje: usunięcie przechowywanego numeru oraz dodanie kategorii.
+Po późniejszej decyzji o wyliczaniu numeru wykonano świeży backup kopii i zastosowano `RemoveStoredTicketNumber`. Potwierdzono zachowanie wszystkich pozostałych danych zgłoszeń i komentarzy. Dla bazy mającej już dwie pierwsze migracje zwykłe `database update` stosuje brakujące migracje: usunięcie przechowywanego numeru, dodanie kategorii oraz konwersję statusu i priorytetu na liczby.
 
 Definicję tabeli historii i właściwy wpis można odczytać ze skryptu wygenerowanego poleceniem:
 
@@ -214,7 +218,8 @@ Profil `https` określa adresy `https://localhost:7261` i `http://localhost:5269
 | Numeracja dla `Id` powyżej 9999 | Agent sprawdził skompilowaną właściwość C# dla 1, 9999, 10000 i `Int32.MaxValue`; nie wstawiał takich identyfikatorów do SQL Server |
 | Kategorie po czwartej migracji | Użytkownik potwierdził poprawne działanie kategorii po migracji. Agent sprawdził binding, model, migrację i kompilację; nie wykonywał własnej próby z bazą ani interfejsem. Polskie nazwy dodano przez `GetCategoryName`; pozostały drobne poprawki tekstów i sprawdzenie ich wyświetlania |
 | Walidacja kategorii | Użytkownik wymusił `(TicketCategory)9999` przed warunkiem i potwierdził komunikat błędu oraz brak nowego zgłoszenia. Agent potwierdził `Enum.IsDefined` przed dostępem do bazy, poprawną kompilację i usunięcie testowego przypisania |
-| Pusta baza z aktualnymi czterema migracjami | Do sprawdzenia; dotychczasowy test pustej bazy obejmował dwie pierwsze migracje |
+| Statusy i priorytety po piątej migracji | Agent zastosował migrację do `layZTicketsDb`: obie kolumny mają typ `int`, historia zawiera 5 migracji. Zachowano 9 zgłoszeń i 12 komentarzy; skróty SHA-256 wszystkich pól zgłoszeń po uwzględnieniu mapowania oraz wszystkich pól komentarzy są zgodne. Statusy: 9 × `New`; priorytety: 6 × `Normal`, 3 × `Highest` (dawne `Critical`). Kompilacja bez błędów i ostrzeżeń, model zgodny ze snapshotem. Formularza po tej migracji nie sprawdzano interaktywnie; cofania migracji nie wykonywano |
+| Pusta baza z aktualnymi pięcioma migracjami | Do sprawdzenia; dotychczasowy test pustej bazy obejmował dwie pierwsze migracje |
 | Testy automatyczne | Brak projektu testowego |
 
 Przed zmianami użytkownik potwierdził tworzenie zgłoszeń, ich obecność na liście, szczegóły, odpowiedzi, notatki i trwałość po odświeżeniu. Po usunięciu kodu poprawiającego schemat powtórzył główne operacje na kopii po migracjach, potwierdzając poprawny odczyt, zapis i aktualizację daty. Próba pustej bazy potwierdza przygotowanie struktury, nie obejmowała jeszcze interfejsu tej bazy.
