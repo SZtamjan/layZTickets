@@ -150,7 +150,7 @@
                         </div>
                         <div>
                             <dt>Karegoria</dt>
-                            <dd>@ticket.Category</dd>
+                            <dd>@GetCategoryName(ticket.Category)</dd>
                         </div>
                         <div>
                             <dt>Przypisany agent</dt>
@@ -312,5 +312,22 @@
 
         var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         return string.Concat(parts.Take(2).Select(part => char.ToUpperInvariant(part[0])));
+    }
+
+    private string GetCategoryName(TicketCategory cat)
+    {
+        switch (cat)
+        {
+            case TicketCategory.Other:
+                return "Inne";
+            case TicketCategory.Hardware:
+                return "Sprzęt";
+            case TicketCategory.Software:
+                return "Oprogramowanie";
+            case TicketCategory.Network:
+                return "Sieć";
+        }
+
+        return "Incorrect category";
     }
 }

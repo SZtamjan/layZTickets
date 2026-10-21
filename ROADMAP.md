@@ -9,7 +9,7 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 - Statusy: **do rozpoczęcia**, **w toku**, **wymaga weryfikacji**, **ukończony**. Obecność kodu nie oznacza ukończenia etapu.
 - Status aktualizujemy po faktycznej pracy i sprawdzeniach. Ukończenie wymaga spełnienia kryteriów funkcjonalnych i omówienia użytych mechanizmów z użytkownikiem, bez obowiązkowego egzaminu.
 - Szczegółowe wymagania funkcji ustalamy przed ich wdrażaniem. Ta roadmapa nie rozstrzyga jeszcze macierzy uprawnień, reguł przejść statusów ani polityki załączników.
-- Dokumentacja została przygotowana i zaktualizowana 20.10.2026. Użytkownik sprawdził podstawowe ścieżki w interfejsie, przejście kopii istniejącej bazy na migracje i utworzenie pustej bazy. Po uproszczeniu numeracji agent zastosował trzecią migrację do kopii, potwierdził zachowanie pozostałych danych, kompilację i odczyty HTTP. Etap 1 jest ukończony w zakresie istniejącego środowiska, etap 2 jest w toku. Odtworzenie całego środowiska na czystym komputerze pozostaje do weryfikacji.
+- Dokumentacja zaktualizowana 21.10.2026. Etap 1 jest ukończony w zakresie istniejącego środowiska. W etapie 2 pozostała próba pustej bazy z aktualnego zestawu czterech migracji. Etap 3 jest w toku: użytkownik potwierdził działanie kategorii po migracji i odrzucenie wartości spoza enuma; następna funkcja to zmiana statusu. Odtworzenie całego środowiska na czystym komputerze pozostaje do weryfikacji.
 
 ## 1. Poznanie i uruchomienie istniejącej aplikacji
 
@@ -46,7 +46,9 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 **Bazy robocza i zapasowa:** po zweryfikowanych backupach obu wersji i porównaniu danych aktualna baza otrzymała nazwę `layZTicketsDb`. Odtworzono `layZTicketsDb_backup` jako kopię tylko do odczytu. Obie mają 7 zgłoszeń, 10 komentarzy i trzy migracje w chwili porządkowania nazw; kopia nie odświeża się automatycznie. Starą bazę usunięto po potwierdzeniu zabezpieczenia i zachowania jej danych. Agent potwierdził odczyt aplikacji z domyślnej konfiguracji. Nazwy `_MigrationTest` i `_FreshTest` w poprzednich wynikach są historycznymi nazwami testów.
 
-**Pozostało:** powtórzyć interaktywne tworzenie i komentowanie po trzeciej migracji oraz utworzenie pustej bazy z aktualnymi trzema migracjami. Logika operacji nadal znajduje się w komponentach — zakres ewentualnego wydzielenia wymaga osobnego małego zadania. Próby dotyczą lokalnego środowiska.
+**Dalsza weryfikacja:** po trzeciej migracji użytkownik potwierdził tworzenie i komentowanie wynikiem 8 zgłoszeń i 12 komentarzy. 21.10.2026 wygenerował `AddTicketCategory`; agent sprawdził, że dodaje wyłącznie kolumnę `Category` typu `int` z wartością domyślną `0`, bez odtwarzania tabel po zmianie klasy `Ticket` na `TicketData`. Kompilacja przeszła bez błędów i ostrzeżeń, a użytkownik potwierdził poprawne działanie kategorii po migracji.
+
+**Pozostało:** utworzenie pustej bazy z aktualnymi czterema migracjami. Logika operacji nadal znajduje się w komponentach — zakres ewentualnego wydzielenia wymaga osobnego małego zadania. Próby dotyczą lokalnego środowiska.
 
 **Kryteria ukończenia:**
 
@@ -58,13 +60,19 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 ## 3. Pełniejsza obsługa zgłoszeń
 
-**Status:** do rozpoczęcia.
+**Status:** w toku — zapis, odczyt i walidacja kategorii sprawdzone przez użytkownika 21.10.2026; polskie nazwy dodane w kodzie. Pozostają drobne poprawki tekstów, zmiana statusu i edycja.
 
 **Efekt:** działająca edycja zgłoszenia oraz obsługa kategorii, priorytetów i statusów.
 
 **Nauka:** modele formularzy, walidacja, reguły biznesowe, wartości słownikowe i znaczenie dat aktualizacji/zamknięcia.
 
 **Praca:** ustalić wymagane pola, dozwolone wartości i przejścia statusów; zapisywać kategorię, dodać edycję, zmianę priorytetu i statusu oraz konsekwentną aktualizację dat. To nadal etap lokalnego prototypu przed dodaniem kontroli dostępu.
+
+**Kategorie — wykonano:** dodano enum `TicketCategory` z jawnymi wartościami `Other = 0`, `Hardware = 1`, `Software = 2`, `Network = 3` i właściwość `TicketData.Category`. `InputRadioGroup` wiąże wybór z modelem, a dotychczasowe `SaveChangesAsync` zapisuje kategorię jako `int`. Migracja `20261021100725_AddTicketCategory` dodaje kolumnę do `Tickets` i nadaje istniejącym rekordom `0` (`Other`). Szczegóły wyświetlają wartość enuma. Użytkownik potwierdził poprawne działanie po migracji; agent zweryfikował kod i kompilację, bez własnej próby interaktywnej ani odczytu bazy po tej migracji. Omówiono binding, mapowanie enuma i różnicę między generowaniem a zastosowaniem migracji.
+
+**Walidacja i nazwy kategorii:** dodano `Enum.IsDefined` z komunikatem i przerwaniem operacji przed dostępem do bazy oraz `GetCategoryName` mapujące cztery wartości na polskie nazwy. Agent potwierdził kompilację bez błędów i ostrzeżeń. Użytkownik wymusił `(TicketCategory)9999`, potwierdził komunikat i brak nowego zgłoszenia. Testowe przypisanie usunięto. Pozostają poprawki „Karegoria” na „Kategoria”, „Incorrect category” na „Nieznana kategoria” i sprawdzenie wyświetlania polskich nazw.
+
+**Najbliższe zadania:** uzgodnić przejścia statusów, w tym ponowne otwarcie, oraz reguły `UpdatedAt` i `ClosedAt`, zaimplementować zmianę statusu, a później edycję zgłoszenia. Sprawdzenia reguł wykonujemy przy odpowiednich funkcjach.
 
 **Kryteria ukończenia:**
 

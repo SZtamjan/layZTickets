@@ -160,6 +160,12 @@
             ticketDraft.ClosedAt = null;
             ticketDraft.Comments = new List<TicketComment>();
 
+            if (!Enum.IsDefined(ticketDraft.Category))
+            {
+                errorMessage = "Wybierz poprawną kategorię zgłoszenia.";
+                return;
+            }
+
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
 
             dbContext.Tickets.Add(ticketDraft);

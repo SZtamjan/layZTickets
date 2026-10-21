@@ -21,15 +21,15 @@ W trybie Interactive Server przeglądarka wyświetla interfejs i przekazuje inte
 
 ## Obecny stan
 
-Stan analizy i weryfikacji: **20 października 2026 r.** Poniższa tabela opisuje implementację w kodzie. Podstawowy scenariusz tworzenia, odczytu i komentowania został również sprawdzony ręcznie przez użytkownika w jego lokalnym środowisku; zakres prób opisano w sekcji „Stan weryfikacji”.
+Stan analizy i weryfikacji: **21 października 2026 r.** Poniższa tabela opisuje implementację w kodzie. Podstawowy scenariusz tworzenia, odczytu i komentowania oraz działanie kategorii po migracji zostały sprawdzone ręcznie przez użytkownika w jego lokalnym środowisku; zakres prób opisano w sekcji „Stan weryfikacji”.
 
 | Obszar | Stan w kodzie |
 | --- | --- |
 | Tworzenie zgłoszenia | Formularz, sprawdzanie wymaganych pól, jeden zapis do bazy, priorytet i tekstowo wpisywani zgłaszający oraz agent; numer `IT-{Id}` wyliczany w C# bez zer wiodących |
 | Lista zgłoszeń | Odczyt 10 najnowszych rekordów i przejście do szczegółów |
 | Szczegóły i komentarze | Odczyt zgłoszenia z komentarzami; zapis odpowiedzi i notatek z flagą `IsInternal` |
-| Schemat bazy | Trzy migracje EF Core; strony nie tworzą ani nie aktualizują schematu; `TicketNumber` nie jest kolumną bazy |
-| Kategorie | Wybór widoczny w formularzu, bez zapisu w modelu i bazie |
+| Schemat bazy | Cztery migracje EF Core; strony nie tworzą ani nie aktualizują schematu; `TicketNumber` nie jest kolumną bazy |
+| Kategorie | Cztery wartości enuma `TicketCategory`; wybór w formularzu zapisuje się jako `int`, serwer sprawdza dozwoloną wartość przez `Enum.IsDefined`, szczegóły mapują ją na polską nazwę przez `GetCategoryName`; pozostają drobne poprawki tekstów |
 | Edycja, zmiana statusu, przypisanie do siebie | Przyciski bez obsługi tych operacji; tekstowe przypisanie można podać przy tworzeniu |
 | Filtry, wyszukiwarka, paginacja | Elementy interfejsu bez zaimplementowanej logiki |
 | Załączniki | Makieta interfejsu, bez przesyłania i przechowywania plików |
@@ -53,7 +53,7 @@ Stan analizy i weryfikacji: **20 października 2026 r.** Poniższa tabela opisuj
 | `Components/Pages/` | Strony, formularze i obecna logika operacji na zgłoszeniach |
 | `Components/Layout/`, `Components/App.razor`, `Components/Routes.razor` | Układ, dokument HTML i routing |
 | `Data/AppDbContext.cs` | Zestawy encji i konfiguracja modelu EF |
-| `DataSets/` | Modele `Ticket` i `TicketComment` |
+| `DataSets/` | Modele `TicketData` i `TicketComment` oraz enum `TicketCategory` |
 | `Migrations/` | Zmiany struktury bazy, metadane migracji i snapshot modelu, czyli jego zapis do porównania przy kolejnych zmianach |
 | `dotnet-tools.json` | Manifest lokalnego narzędzia `dotnet-ef` w wersji 8.0.27 |
 | `Components/Services/SaveService/`, `App_Data/` | Serwis i pliki JSON; licznik zapisuje tam swój stan, zgłoszenia korzystają z SQL Server |
@@ -137,8 +137,11 @@ dotnet build layZTickets.sln --no-restore
 | `20261020162759_InitialSchema` | Tabele `Tickets` i `TicketComments`, klucze główne z `IDENTITY`, relacja z kaskadowym usuwaniem komentarzy, ich indeks `TicketId` i wartości domyślne |
 | `20261020163451_AddUniqueTicketNumberIndex` | Unikalny indeks `IX_Tickets_TicketNumber` obejmujący niepuste numery |
 | `20261020184200_RemoveStoredTicketNumber` | Usunięcie indeksu i kolumny `TicketNumber`; aktualny numer jest wyliczany z `Id` w C# |
+| `20261021100725_AddTicketCategory` | Kolumna `Tickets.Category` typu `int`, wymagana, z wartością domyślną `0` (`Other`) dla istniejących zgłoszeń |
 
 Migracje opisują kolejne decyzje projektowe: pierwsza tworzyła kolumnę numeru, druga dodała indeks, a trzecia usuwa obie struktury. Po zastosowaniu wszystkich trzech baza nie przechowuje numeru zgłoszenia. `Down()` trzeciej migracji przywraca kolumnę z pustymi wartościami i indeks, ale nie odtwarza historycznej zawartości usuniętej kolumny; przed jej usunięciem wykonano i zweryfikowano backup kopii bazy.
+
+Czwarta migracja dodaje kategorię: `Other = 0` (Inne), `Hardware = 1` (Sprzęt), `Software = 2` (Oprogramowanie), `Network = 3` (Sieć). W modelu C# jest to enum, w SQL Server liczba całkowita. `InputRadioGroup` aktualizuje `ticketDraft.Category`, a zapis zgłoszenia obejmuje tę właściwość bez osobnego przypisania. Znaczenie zapisanych wartości liczbowych enuma powinno pozostać stałe.
 
 Dla nowej bazy, po ustawieniu przykładowego połączenia powyżej:
 
@@ -160,7 +163,7 @@ Dotyczy baz utworzonych przez `EnsureCreatedAsync` i ręczny SQL, bez historii m
 4. Zastosowanie `AddUniqueTicketNumberIndex` narzędziem EF z jawnym `--connection` do odtworzonej kopii.
 5. Sprawdzenie historii migracji, liczby rekordów i działania aplikacji na kopii.
 
-Po późniejszej decyzji o wyliczaniu numeru wykonano świeży backup kopii i zastosowano `RemoveStoredTicketNumber`. Potwierdzono zachowanie wszystkich pozostałych danych zgłoszeń i komentarzy. Dla bazy mającej już dwie pierwsze migracje zwykłe `database update` stosuje trzecią; przy przejściu starszej bazy na aktualny stan należy uwzględnić również tę migrację.
+Po późniejszej decyzji o wyliczaniu numeru wykonano świeży backup kopii i zastosowano `RemoveStoredTicketNumber`. Potwierdzono zachowanie wszystkich pozostałych danych zgłoszeń i komentarzy. Dla bazy mającej już dwie pierwsze migracje zwykłe `database update` stosuje brakujące migracje: usunięcie przechowywanego numeru oraz dodanie kategorii.
 
 Definicję tabeli historii i właściwy wpis można odczytać ze skryptu wygenerowanego poleceniem:
 
@@ -190,7 +193,7 @@ Profil `https` określa adresy `https://localhost:7261` i `http://localhost:5269
 
 ### Stan weryfikacji
 
-| Sprawdzenie | Wynik na 20.10.2026 |
+| Sprawdzenie | Wynik na 21.10.2026 |
 | --- | --- |
 | `dotnet build layZTickets.sln --no-restore -v minimal` | Sukces, 0 błędów, 0 ostrzeżeń; użyto już dostępnych pakietów |
 | Przywrócenie pakietów w nowym środowisku | Niezweryfikowane |
@@ -207,9 +210,11 @@ Profil `https` określa adresy `https://localhost:7261` i `http://localhost:5269
 | Baza robocza i kopia po uporządkowaniu nazw | Agent potwierdził `layZTicketsDb` do zapisu i `layZTicketsDb_backup` tylko do odczytu, zgodność danych i historii migracji oraz listę i szczegóły HTTP 200 z domyślnej konfiguracji |
 | Walidacja wymaganych pól | Użytkownik potwierdził wymaganie tytułu, opisu i zgłaszającego; pusty komentarz sprawdzony w ramach próby komentowania |
 | Nieistniejący identyfikator | Użytkownik potwierdził ekran „Nie znaleziono ticketu” dla `/DisplayTicket/777` |
-| Zapis po uproszczeniu numeracji | Kod i kompilacja potwierdzają pojedyncze `SaveChangesAsync`; nie ma osobnego zapisu numeru. Nowe tworzenie i komentowanie przez interaktywny formularz po trzeciej migracji wymaga ponownej próby |
+| Zapis po uproszczeniu numeracji | Kod i kompilacja potwierdzają pojedyncze `SaveChangesAsync`; użytkownik potwierdził tworzenie i komentowanie po trzeciej migracji wynikiem 8 zgłoszeń i 12 komentarzy |
 | Numeracja dla `Id` powyżej 9999 | Agent sprawdził skompilowaną właściwość C# dla 1, 9999, 10000 i `Int32.MaxValue`; nie wstawiał takich identyfikatorów do SQL Server |
-| Pusta baza z aktualnymi trzema migracjami | Do ponownego sprawdzenia; dotychczasowy test pustej bazy obejmował dwie pierwsze migracje |
+| Kategorie po czwartej migracji | Użytkownik potwierdził poprawne działanie kategorii po migracji. Agent sprawdził binding, model, migrację i kompilację; nie wykonywał własnej próby z bazą ani interfejsem. Polskie nazwy dodano przez `GetCategoryName`; pozostały drobne poprawki tekstów i sprawdzenie ich wyświetlania |
+| Walidacja kategorii | Użytkownik wymusił `(TicketCategory)9999` przed warunkiem i potwierdził komunikat błędu oraz brak nowego zgłoszenia. Agent potwierdził `Enum.IsDefined` przed dostępem do bazy, poprawną kompilację i usunięcie testowego przypisania |
+| Pusta baza z aktualnymi czterema migracjami | Do sprawdzenia; dotychczasowy test pustej bazy obejmował dwie pierwsze migracje |
 | Testy automatyczne | Brak projektu testowego |
 
 Przed zmianami użytkownik potwierdził tworzenie zgłoszeń, ich obecność na liście, szczegóły, odpowiedzi, notatki i trwałość po odświeżeniu. Po usunięciu kodu poprawiającego schemat powtórzył główne operacje na kopii po migracjach, potwierdzając poprawny odczyt, zapis i aktualizację daty. Próba pustej bazy potwierdza przygotowanie struktury, nie obejmowała jeszcze interfejsu tej bazy.

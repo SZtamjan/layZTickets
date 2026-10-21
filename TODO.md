@@ -6,19 +6,35 @@ Pracujemy nad jednym punktem naraz. Zaznacz `[x]` dopiero po sprawdzeniu opisane
 
 ## Teraz
 
-- [ ] **Kategorie** — dziś / najbliższa sesja · etap 3 roadmapy
+- [ ] **Zmiana statusu** — najbliższa sesja · etap 3
 
-  Wybrana kategoria zapisuje się w bazie i jest widoczna w szczegółach zgłoszenia również po odświeżeniu. Przed zmianą schematu ustalamy sposób zachowania istniejących danych.
+  Uzgodnić statusy i dozwolone przejścia, w tym ponowne otwarcie zgłoszenia, oraz reguły `UpdatedAt` i `ClosedAt`. Przejścia sprawdzać na serwerze; status i daty muszą pozostać po ponownym odczycie.
 
 ## Następne sesje
 
-- [ ] **Zmiana statusu** — następna sesja · etap 3
+- [ ] **Drobne poprawki tekstów kategorii** — etap 3
 
-  Uzgodnione przejścia statusów są sprawdzane na serwerze. Status i data zamknięcia zapisują się zgodnie z ustalonymi regułami; wynik pozostaje po ponownym odczycie.
+  W szczegółach poprawić „Karegoria” na „Kategoria” i „Incorrect category” na „Nieznana kategoria”; sprawdzić wyświetlanie polskich nazw dodanych w `GetCategoryName`.
 
 - [ ] **Edycja zgłoszenia** — kolejna sesja · etap 3
 
   Można zmienić tytuł, opis, kategorię i priorytet. Poprawny zapis aktualizuje datę modyfikacji, a nieprawidłowe dane są odrzucane. Zmiany pozostają po odświeżeniu.
+
+## Pozostała weryfikacja techniczna
+
+- [ ] **Pusta baza z pełnego zestawu migracji** — etap 2
+
+  Sprawdzić utworzenie osobnej pustej bazy z aktualnych czterech migracji, w tym kolumny `Category`. Wcześniejsza próba obejmowała tylko dwie pierwsze migracje.
+
+## Wykonane
+
+- [x] **Kategorie — zapis i odczyt** — 21.10.2026 · etap 3 roadmapy
+
+  `TicketCategory` ma jawne wartości `Other = 0`, `Hardware = 1`, `Software = 2`, `Network = 3`. Wybór jest powiązany z modelem przez `InputRadioGroup`, zapisywany jako `int` i wyświetlany w szczegółach. Migracja `AddTicketCategory` dodaje kolumnę z wartością domyślną `0`. Użytkownik potwierdził poprawne działanie po migracji. Polskie nazwy dodano przez `GetCategoryName`; drobne poprawki tekstów pozostają osobnym punktem powyżej.
+
+- [x] **Walidacja kategorii na serwerze** — 21.10.2026 · etap 3
+
+  `Enum.IsDefined` odrzuca wartość spoza enuma przed dostępem do bazy. Użytkownik wymusił `(TicketCategory)9999` i potwierdził komunikat błędu oraz brak nowego zgłoszenia. Testowe przypisanie zostało usunięte; agent potwierdził to w kodzie. Kompilacja walidacji i polskich nazw przeszła bez błędów i ostrzeżeń.
 
 ## Większe bloki
 
