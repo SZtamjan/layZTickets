@@ -30,8 +30,8 @@ Stan analizy i weryfikacji: **21 października 2026 r.** Poniższa tabela opisuj
 | Szczegóły i komentarze | Odczyt zgłoszenia z komentarzami; zapis odpowiedzi i notatek z flagą `IsInternal` |
 | Schemat bazy | Pięć migracji EF Core; strony nie tworzą ani nie aktualizują schematu; `TicketNumber` nie jest kolumną bazy |
 | Kategorie | Cztery wartości enuma `TicketCategory`; wybór w formularzu zapisuje się jako `int`, serwer sprawdza dozwoloną wartość przez `Enum.IsDefined`, szczegóły mapują ją na polską nazwę przez `GetCategoryName`; pozostają drobne poprawki tekstów |
-| Statusy i priorytety | `TicketStatus` i `TicketPriority` przechowywane jako `int`; zmiana istniejącego zgłoszenia po wyborze z listy pozostaje do implementacji |
-| Edycja, zmiana statusu, przypisanie do siebie | Przyciski bez obsługi tych operacji; tekstowe przypisanie można podać przy tworzeniu |
+| Statusy i priorytety | `TicketStatus` i `TicketPriority` przechowywane jako `int`; wybór z listy w szczegółach zapisuje odpowiednie pole i `UpdatedAt`. Zamknięcie ustawia `ClosedAt`, a inny status ją czyści. Podstawowy zapis sprawdzony przez użytkownika; pełna weryfikacja dat i błędów pozostaje do wykonania |
+| Pozostałe przyciski w szczegółach | „Edytuj”, „Zmień status” i „Przypisz do mnie” nadal są nieaktywne. Status zmienia się listą; dwa pierwsze przyciski przeznaczono do usunięcia. Tekstowe przypisanie można podać przy tworzeniu |
 | Filtry, wyszukiwarka, paginacja | Elementy interfejsu bez zaimplementowanej logiki |
 | Załączniki | Makieta interfejsu, bez przesyłania i przechowywania plików |
 | Logowanie i role | Brak uwierzytelniania i autoryzacji; dane profilu w układzie są przykładowe |
@@ -45,6 +45,7 @@ Stan analizy i weryfikacji: **21 października 2026 r.** Poniższa tabela opisuj
 - Numer `TicketNumber` jest właściwością C# z `[NotMapped]`. Wyszukiwanie numeru w zapytaniu EF powinno wykorzystywać odpowiadające mu `Id`; właściwość wyliczana nie jest kolumną SQL.
 - Pola nazwane `CreatedByUserId`, `AssignedAgentId` i `AuthorUserId` przechowują obecnie wpisywany tekst, bez powiązania z kontami.
 - Obsługa błędów stron wyświetla treść wyjątków. Nie ma projektu testów automatycznych.
+- Zmiana statusu sprawdza wartość enuma, ale nie ogranicza przejść między statusami. Wybór tej samej wartości nadal aktualizuje datę; reguły i sprawdzenia pozostają w roadmapie. Błędy aktualizacji wyświetlane są przy listach, bez ukrywania szczegółów; błąd początkowego odczytu i brak rekordu mają osobny ekran.
 
 ## Struktura projektu
 
@@ -70,6 +71,7 @@ Stan analizy i weryfikacji: **21 października 2026 r.** Poniższa tabela opisuj
 5. `Tickets.Add` dodaje obiekt do śledzenia przez EF. Jedyne `SaveChangesAsync` zapisuje go w SQL Server i uzupełnia `Id`.
 6. Właściwość `TicketNumber` zwraca `IT-{Id}`, np. `IT-7`. Numer jest wyliczany przy odczycie właściwości, bez zapisu w bazie. Komponent wyświetla komunikat i czyści formularz. Nie ma już osobnego zapisu numeru wymagającego wspólnej transakcji z utworzeniem zgłoszenia.
 7. Lista wykonuje osobny odczyt przez EF, a szczegóły dołączają komentarze przez `Include`. Zapis komentarza aktualizuje również `UpdatedAt` zgłoszenia.
+8. W szczegółach `@bind-Value:get` / `@bind-Value:set` łączy listy z metodami `ChangeStatus` i `ChangePriority`. Nowy kontekst pobiera śledzony rekord, zmienia odpowiednie pole i daty, a `SaveChangesAsync` zapisuje zmiany. Dopiero po sukcesie aktualizowany jest obiekt używany przez widok. `isUpdating` blokuje kolejne wywołania i obie listy na czas zapisu.
 
 ## Uruchomienie lokalne
 
@@ -219,6 +221,7 @@ Profil `https` określa adresy `https://localhost:7261` i `http://localhost:5269
 | Kategorie po czwartej migracji | Użytkownik potwierdził poprawne działanie kategorii po migracji. Agent sprawdził binding, model, migrację i kompilację; nie wykonywał własnej próby z bazą ani interfejsem. Polskie nazwy dodano przez `GetCategoryName`; pozostały drobne poprawki tekstów i sprawdzenie ich wyświetlania |
 | Walidacja kategorii | Użytkownik wymusił `(TicketCategory)9999` przed warunkiem i potwierdził komunikat błędu oraz brak nowego zgłoszenia. Agent potwierdził `Enum.IsDefined` przed dostępem do bazy, poprawną kompilację i usunięcie testowego przypisania |
 | Statusy i priorytety po piątej migracji | Agent zastosował migrację do `layZTicketsDb`: obie kolumny mają typ `int`, historia zawiera 5 migracji. Zachowano 9 zgłoszeń i 12 komentarzy; skróty SHA-256 wszystkich pól zgłoszeń po uwzględnieniu mapowania oraz wszystkich pól komentarzy są zgodne. Statusy: 9 × `New`; priorytety: 6 × `Normal`, 3 × `Highest` (dawne `Critical`). Kompilacja bez błędów i ostrzeżeń, model zgodny ze snapshotem. Formularza po tej migracji nie sprawdzano interaktywnie; cofania migracji nie wykonywano |
+| Zmiana statusu i priorytetu w szczegółach | Użytkownik potwierdził podstawowe działanie podczas ręcznych prób. Agent sprawdził kod po commicie `da2245f` (`Improved error handling`) i kompilację: 0 błędów, 0 ostrzeżeń. Kod zapisuje pola i daty, blokuje nakładające się wywołania, rozdziela błędy odczytu od aktualizacji i czyści `ClosedAt` przy ponownym otwarciu. Agent nie wykonywał własnych prób z bazą ani interfejsem tej wersji. Trwałość ostatnich zmian dat, błędy zapisu i ponowienie wymagają dalszych prób |
 | Pusta baza z aktualnymi pięcioma migracjami | Do sprawdzenia; dotychczasowy test pustej bazy obejmował dwie pierwsze migracje |
 | Testy automatyczne | Brak projektu testowego |
 

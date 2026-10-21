@@ -1,6 +1,6 @@
 # TODO — layZTickets
 
-Krótka lista do odhaczania zamiast osobnego narzędzia do zadań. Kolejność pochodzi z planu sesji z 20.10.2026; „następna sesja” oznacza kolejność pracy, nie termin.
+Krótka lista do odhaczania zamiast osobnego narzędzia do zadań. Plan zaktualizowano 21.10.2026 po przeglądzie commita `da2245f`; „następna sesja” oznacza kolejność pracy, nie termin.
 
 Pracujemy nad jednym punktem naraz. Zaznacz `[x]` dopiero po sprawdzeniu opisanego efektu. Szczegółowe kryteria etapów i ich statusy są w [ROADMAP.md](ROADMAP.md).
 
@@ -8,23 +8,33 @@ Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek
 
 ## Teraz
 
-- [ ] **Status — lista rozwijana z zapisem po wyborze** — najbliższa sesja · etap 3
+- [ ] **Identity: pierwsze konto, logowanie i wylogowanie** — etap 4a roadmapy
 
-  Uzgodnić statusy i dozwolone przejścia, w tym ponowne otwarcie zgłoszenia, oraz reguły `UpdatedAt` i `ClosedAt`. Zastąpić przycisk „Zmień status” listą rozwijaną. Wybór zapisuje status i wymagane daty bez dodatkowego przycisku zapisu. Serwer sprawdza przejście; wynik pozostaje po ponownym odczycie. Pokazać trwający zapis i błąd oraz obsłużyć kolejne wybory podczas zapisu.
+  Ustalono: wszystkie konta tworzy administrator; bez publicznej rejestracji. Ustalić dane konta, sposób pierwszego ustawienia hasła i potwierdzanie e-maila. Dodać Identity do obecnego .NET 8 i SQL Server oraz migrację. Przygotować jednorazowe lokalne utworzenie pierwszego administratora z danymi dostępowymi spoza repozytorium, następnie logowanie, wylogowanie i rzeczywistą tożsamość w układzie. Pierwszy efekt: administrator może się zalogować, odświeżyć stronę i wylogować.
+
+- [ ] **Tworzenie kolejnych kont przez administratora** — etap 4a
+
+  Dodać formularz tworzenia kont oraz rolę administratora i ochronę operacji na serwerze. Sprawdzić utworzenie użytkownika i jego logowanie, błędne hasło, duplikat konta oraz zakaz tworzenia kont dla osoby niezalogowanej i zwykłego użytkownika, również przy bezpośrednim wywołaniu operacji. Nie udostępniać publicznej rejestracji. Pełne uprawnienia do zgłoszeń pozostają osobnym zadaniem.
 
 ## Następne sesje
 
-- [ ] **Priorytet — lista rozwijana z zapisem po wyborze** — kolejna sesja · etap 3
+- [ ] **Autor zgłoszenia i komentarza z zalogowanego konta** — etap 4b
 
-  W szczegółach wybór priorytetu od razu zapisuje go w bazie i aktualizuje `UpdatedAt`, bez osobnego zatwierdzania. Serwer sprawdza dozwoloną wartość; zmiana nie nadpisuje statusu ani pozostałych pól. Wynik pozostaje po odświeżeniu, a interfejs obsługuje trwający zapis, błąd i kolejne wybory.
+  Przed zmianą modelu ustalić los dotychczasowych tekstowych autorów i przypisań. Nowe zgłoszenie i komentarz otrzymują identyfikator osoby zalogowanej na serwerze; nie wpisujemy autora dowolnym tekstem. Sprawdzić zachowanie osoby niezalogowanej.
+
+## Domknięcie etapu 3
+
+- [ ] **Reguły i weryfikacja statusów oraz priorytetów**
+
+  Uzgodnić dozwolone przejścia; obecnie każdy status z enuma jest akceptowany. Ustalić i obsłużyć wybór tej samej wartości, aby nie zmieniać bez potrzeby dat. Powtórzyć próby po odświeżeniu: zamknięcie ustawia `ClosedAt`, ponowne otwarcie ją czyści, status i priorytet pozostają zapisane. Sprawdzić niepoprawne enumy, błąd zapisu, widoczność szczegółów i udane ponowienie; przygotować odpowiednie testy uzgodnionych reguł. Podstawowy zapis użytkownik już sprawdził; nie deklarujemy pełnej weryfikacji ostatniej wersji.
 
 - [ ] **Drobne poprawki tekstów kategorii** — etap 3
 
   W szczegółach poprawić „Karegoria” na „Kategoria” i „Incorrect category” na „Nieznana kategoria”; sprawdzić wyświetlanie polskich nazw dodanych w `GetCategoryName`.
 
-- [ ] **Usunięcie przycisku „Edytuj”** — etap 3
+- [ ] **Porządki w szczegółach** — etap 3
 
-  Usunąć nieaktywny przycisk ze szczegółów zgodnie z zakresem bez edycji treści zgłoszenia, komentarzy i notatek. Zmiany statusu i priorytetu mają własne listy rozwijane.
+  Usunąć nieaktywne przyciski „Edytuj” i „Zmień status”. Status ma już własną listę rozwijaną; nadać jej `id="ticket-status"`, aby nie powtarzała identyfikatora priorytetu. Poprawić komunikaty w `catch`, które przy aktualizacji nadal mówią o pobieraniu zgłoszenia. Przeniesienie szczegółów wyjątków do logów pozostaje w etapie 6.
 
 ## Pozostała weryfikacja techniczna
 
@@ -34,9 +44,13 @@ Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek
 
 ## Wykonane
 
+- [x] **Status i priorytet — podstawowy zapis po wyborze z listy** — 21.10.2026 · etap 3
+
+  `ChangeStatus` i `ChangePriority` walidują enum i aktualizują odpowiednie pole oraz `UpdatedAt` jednym zapisem. Widok jest aktualizowany po sukcesie; `isUpdating` blokuje obie listy i nakładające się wywołania. `updateErrorMessage` jest wyświetlane przy listach i czyszczone przed nową próbą; błąd odczytu i brak rekordu mają osobny ekran. W commicie `da2245f` zamknięcie ustawia `ClosedAt`, a inny status ją czyści. Użytkownik potwierdził podstawowe działanie, agent kod i kompilację bez błędów oraz ostrzeżeń. Daty i scenariusze błędów ostatniej wersji wymagają osobnych prób opisanych powyżej; cały etap 3 pozostaje w toku.
+
 - [x] **Enumy statusów i priorytetów — migracja bazy** — 21.10.2026 · etap 3
 
-  Model korzysta z `TicketStatus` i `TicketPriority`, a kolumny `Status` i `Priority` mają typ `int`. Agent zastosował `ConvertTicketStatusAndPriorityToEnums` do `layZTicketsDb`, zachowując 9 zgłoszeń i 12 komentarzy; dawne `Critical` mapuje się na `Highest = 3`. Zweryfikowano dane skrótami SHA-256, historię 5 migracji, kompilację i zgodność modelu ze snapshotem. Opcje priorytetu formularza tworzenia dostosowano do enuma. Próba interaktywna formularza po migracji pozostaje do wykonania przy dalszej pracy. Same zmiany statusu i priorytetu po wyborze z listy nie są jeszcze zaimplementowane.
+  Model korzysta z `TicketStatus` i `TicketPriority`, a kolumny `Status` i `Priority` mają typ `int`. Agent zastosował `ConvertTicketStatusAndPriorityToEnums` do `layZTicketsDb`, zachowując 9 zgłoszeń i 12 komentarzy; dawne `Critical` mapuje się na `Highest = 3`. Zweryfikowano dane skrótami SHA-256, historię 5 migracji, kompilację i zgodność modelu ze snapshotem. Opcje priorytetu formularza tworzenia dostosowano do enuma. Agent nie wykonywał interaktywnej próby tworzenia po migracji. Późniejszy podstawowy zapis zmian statusu i priorytetu opisano osobno powyżej.
 
 - [x] **Kategorie — zapis i odczyt** — 21.10.2026 · etap 3 roadmapy
 
@@ -47,10 +61,6 @@ Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek
   `Enum.IsDefined` odrzuca wartość spoza enuma przed dostępem do bazy. Użytkownik wymusił `(TicketCategory)9999` i potwierdził komunikat błędu oraz brak nowego zgłoszenia. Testowe przypisanie zostało usunięte; agent potwierdził to w kodzie. Kompilacja walidacji i polskich nazw przeszła bez błędów i ostrzeżeń.
 
 ## Większe bloki
-
-- [ ] **Identity: konta i logowanie** — następny większy blok · etap 4
-
-  Działają logowanie i wylogowanie. Autor zgłoszenia i komentarza wynika z zalogowanego konta. Przed wdrożeniem ustalamy sposób tworzenia kont i powiązania dotychczasowych danych z kontami.
 
 - [ ] **Uprawnienia i przypisywanie** — kolejny większy blok · etap 4
 

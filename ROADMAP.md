@@ -9,8 +9,8 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 - Statusy: **do rozpoczęcia**, **w toku**, **wymaga weryfikacji**, **ukończony**. Obecność kodu nie oznacza ukończenia etapu.
 - Status aktualizujemy po faktycznej pracy i sprawdzeniach. Ukończenie wymaga spełnienia kryteriów funkcjonalnych i omówienia użytych mechanizmów z użytkownikiem, bez obowiązkowego egzaminu.
 - Szczegółowe wymagania funkcji ustalamy przed ich wdrażaniem. Ta roadmapa nie rozstrzyga jeszcze macierzy uprawnień, reguł przejść statusów ani polityki załączników.
-- Zakres obsługi zgłoszeń: treść wysłanego zgłoszenia, komentarzy i notatek pozostaje bez edycji. Status i priorytet będą zmieniane osobnymi listami rozwijanymi w szczegółach, z zapisem po wyborze, bez osobnego przycisku zapisu. Po wdrożeniu kont „Przypisz do mnie” od razu zapisze przypisanie do zalogowanej osoby. Są to planowane funkcje, nie opis obecnego działania.
-- Dokumentacja zaktualizowana 21.10.2026. Etap 1 jest ukończony w zakresie istniejącego środowiska. W etapie 2 pozostała próba pustej bazy z aktualnego zestawu pięciu migracji. Etap 3 jest w toku: użytkownik potwierdził działanie kategorii po migracji i odrzucenie wartości spoza enuma; statusy i priorytety przeniesiono na enumy z zapisem liczbowym. Następna funkcja to zmiana statusu po wyborze z listy. Odtworzenie całego środowiska na czystym komputerze pozostaje do weryfikacji.
+- Zakres obsługi zgłoszeń: treść wysłanego zgłoszenia, komentarzy i notatek pozostaje bez edycji. Status i priorytet są zmieniane osobnymi listami rozwijanymi w szczegółach, z zapisem po wyborze, bez osobnego przycisku zapisu. Po wdrożeniu kont „Przypisz do mnie” od razu zapisze przypisanie do zalogowanej osoby; przypisywanie jest nadal planowaną funkcją.
+- Dokumentacja zaktualizowana 21.10.2026 po przeglądzie commita `da2245f` (`Improved error handling`). Etap 1 jest ukończony w zakresie istniejącego środowiska. W etapie 2 pozostała próba pustej bazy z aktualnego zestawu pięciu migracji. W etapie 3 zaimplementowano zmianę statusu i priorytetu; użytkownik potwierdził podstawowe działanie, agent kod i kompilację. Etap pozostaje w toku z opisanymi poniżej zaległymi regułami, sprawdzeniami i porządkami. Następny temat to etap 4a: konta i logowanie. Odtworzenie całego środowiska na czystym komputerze pozostaje do weryfikacji.
 
 ## 1. Poznanie i uruchomienie istniejącej aplikacji
 
@@ -61,7 +61,7 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 ## 3. Pełniejsza obsługa zgłoszeń
 
-**Status:** w toku — zapis, odczyt i walidacja kategorii sprawdzone przez użytkownika 21.10.2026; polskie nazwy dodane w kodzie. Pozostają drobne poprawki tekstów oraz zmiana statusu i priorytetu z zapisem po wyborze.
+**Status:** w toku — kategoria oraz zmiana statusu i priorytetu są zaimplementowane. Podstawowe działanie użytkownik sprawdził ręcznie; ostatnią zmianę dat i komunikatów agent potwierdził w kodzie i kompilacją. Pozostały reguły przejść, pełna weryfikacja oraz drobne porządki. Rozpoczęcie etapu 4 nie oznacza ukończenia tego etapu.
 
 **Efekt:** zapisywana kategoria przy tworzeniu oraz niezależna zmiana statusu i priorytetu w szczegółach zgłoszenia, z zapisem do bazy od razu po wyborze z listy rozwijanej.
 
@@ -73,9 +73,11 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 **Walidacja i nazwy kategorii:** dodano `Enum.IsDefined` z komunikatem i przerwaniem operacji przed dostępem do bazy oraz `GetCategoryName` mapujące cztery wartości na polskie nazwy. Agent potwierdził kompilację bez błędów i ostrzeżeń. Użytkownik wymusił `(TicketCategory)9999`, potwierdził komunikat i brak nowego zgłoszenia. Testowe przypisanie usunięto. Pozostają poprawki „Karegoria” na „Kategoria”, „Incorrect category” na „Nieznana kategoria” i sprawdzenie wyświetlania polskich nazw.
 
-**Enumy statusu i priorytetu — wykonano:** użytkownik dodał `TicketStatus` (`New = 0`, `InProgress = 1`, `Pending = 2`, `Closed = 3`) i `TicketPriority` (`Low = 0`, `Normal = 1`, `High = 2`, `Highest = 3`) oraz dostosował model i referencje. Agent wygenerował `20261021122842_ConvertTicketStatusAndPriorityToEnums`, dodał jawne mapowanie istniejących nazw, w tym `Critical` na `Highest = 3`, i zastosował migrację do `layZTicketsDb`. Poprawił też opcje priorytetu w formularzu tworzenia, aby korzystały z obecnego enuma. Potwierdzono typ `int` obu kolumn, 5 migracji, zachowanie 9 zgłoszeń i 12 komentarzy oraz zgodność skrótów SHA-256 wszystkich pól po uwzględnieniu konwersji. Kompilacja przeszła bez błędów i ostrzeżeń; model jest zgodny ze snapshotem. Nie wykonywano interaktywnego wysłania formularza po migracji ani jej cofania. Zapis statusu i priorytetu po wyborze z listy nadal pozostaje do implementacji; reguły przejść nie są jeszcze uzgodnione.
+**Enumy statusu i priorytetu — wykonano:** użytkownik dodał `TicketStatus` (`New = 0`, `InProgress = 1`, `Pending = 2`, `Closed = 3`) i `TicketPriority` (`Low = 0`, `Normal = 1`, `High = 2`, `Highest = 3`) oraz dostosował model i referencje. Agent wygenerował `20261021122842_ConvertTicketStatusAndPriorityToEnums`, dodał jawne mapowanie istniejących nazw, w tym `Critical` na `Highest = 3`, i zastosował migrację do `layZTicketsDb`. Poprawił też opcje priorytetu w formularzu tworzenia, aby korzystały z obecnego enuma. Potwierdzono typ `int` obu kolumn, 5 migracji, zachowanie 9 zgłoszeń i 12 komentarzy oraz zgodność skrótów SHA-256 wszystkich pól po uwzględnieniu konwersji. Kompilacja przeszła bez błędów i ostrzeżeń; model jest zgodny ze snapshotem. Przy tej migracji agent nie wykonywał interaktywnego wysłania formularza ani cofania migracji. Późniejszą implementację zmiany pól opisano poniżej.
 
-**Najbliższe zadania:** uzgodnić przejścia statusów, w tym ponowne otwarcie, oraz reguły `UpdatedAt` i `ClosedAt`. Zaimplementować zapis statusu po wyborze z listy, następnie analogiczny zapis priorytetu z aktualizacją `UpdatedAt`. Ustalić zachowanie wyboru tej samej wartości i obsługę kolejnych zmian podczas trwającego zapisu. Sprawdzenia reguł wykonujemy przy odpowiednich funkcjach.
+**Zmiana statusu i priorytetu — wykonano:** `InputSelect` korzysta z `@bind-Value:get` i `@bind-Value:set`, wywołując `ChangeStatus` albo `ChangePriority`. Każda metoda sprawdza enum, tworzy kontekst, pobiera śledzony rekord i zapisuje odpowiednie pole wraz z `UpdatedAt` jednym `SaveChangesAsync`. Obiekt widoku aktualizowany jest po udanym zapisie. Wspólne `isUpdating` blokuje listy i kolejne wywołania obu metod. Błąd aktualizacji pojawia się obok list przez `updateErrorMessage`, czyszczone przy kolejnej próbie; brak rekordu i błąd początkowego odczytu mają osobny ekran. Commit `da2245f` zawiera również ustawienie `ClosedAt` przy `Closed` i wyczyszczenie przy innych statusach, z aktualizacją widoku. Użytkownik potwierdził podstawowe działanie zmian; agent potwierdził aktualny kod i kompilację bez błędów i ostrzeżeń. Nie wykonywał własnego zapisu w bazie ani prób interaktywnych tej wersji.
+
+**Pozostało do domknięcia:** uzgodnić ewentualne ograniczenia przejść statusów; obecny kod dopuszcza każdą wartość enuma niezależnie od poprzedniej. Ustalić i obsłużyć wybór tej samej wartości, który obecnie również zmienia datę. Sprawdzić po odświeżeniu zamknięcie, ponowne otwarcie i daty, odrzucenie niepoprawnych enumów, błąd zapisu oraz udane ponowienie. Dodać odpowiednie testy uzgodnionych reguł. Poprawić powtórzone `id="ticket-priority"` dla statusu, teksty komunikatów aktualizacji i kategorii; usunąć nieaktywne przyciski „Edytuj” oraz „Zmień status”. Szczegóły wyjątków pozostają do przeniesienia do logów zgodnie z etapem 6. Te punkty pozostają w TODO; następny temat pracy to konta i logowanie.
 
 **Kryteria ukończenia:**
 
@@ -87,17 +89,30 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 ## 4. Konta, role i granice dostępu
 
-**Status:** do rozpoczęcia.
+**Status:** do rozpoczęcia — następny etap pracy. Rozpisano plan; Identity, konta i logowanie nie są jeszcze zaimplementowane.
 
 **Efekt:** logowanie i wylogowanie oraz egzekwowane na serwerze uprawnienia ról użytkownika, agenta SD i administratora.
 
 **Nauka:** uwierzytelnianie a autoryzacja, tożsamość użytkownika, role/polityki, dostęp do konkretnego rekordu i obsługa kont.
 
-**Praca:** przed implementacją uzgodnić macierz uprawnień i sposób tworzenia kont. Powiązać autorów i przypisania z kontami, ustalając los dotychczasowych tekstowych danych. Zaimplementować przydzielanie zgłoszeń zgodnie z macierzą. Kliknięcie „Przypisz do mnie” od razu uruchamia zapis przypisania w bazie; serwer ustala identyfikator zalogowanej osoby i sprawdza jej uprawnienia. Ustalić zasady przejęcia już przypisanego zgłoszenia i aktualizacji daty. Chronić notatki wewnętrzne także przy pobieraniu danych. Objąć uprawnieniami również zmianę statusu i priorytetu.
+**Praca:** konta tworzy wyłącznie administrator; nie udostępniamy publicznej rejestracji ani publicznej operacji tworzenia kont. Przed implementacją ustalić szczegóły zakładania kont, a następnie macierz uprawnień do zgłoszeń. Powiązać autorów i przypisania z kontami, ustalając los dotychczasowych tekstowych danych. Zaimplementować przydzielanie zgłoszeń zgodnie z macierzą. Kliknięcie „Przypisz do mnie” od razu uruchamia zapis przypisania w bazie; serwer ustala identyfikator zalogowanej osoby i sprawdza jej uprawnienia. Ustalić zasady przejęcia już przypisanego zgłoszenia i aktualizacji daty. Chronić notatki wewnętrzne także przy pobieraniu danych. Objąć uprawnieniami również zmianę statusu i priorytetu.
+
+**4a. Konta i sesja logowania — najbliższy mały etap:**
+
+1. Ustalono: wszystkie konta tworzy administrator, bez publicznej rejestracji. Doprecyzować podstawowe dane konta, sposób logowania, pierwszego ustawienia lub przekazania hasła oraz zakres potwierdzania adresu e-mail; wymaganie potwierdzenia musi mieć działający sposób obsługi.
+2. Dodać ASP.NET Core Identity do istniejącego projektu .NET 8 i SQL Server. Identity zapewnia obsługę użytkowników i haseł; zaplanować integrację z kontekstem EF oraz migrację tabel kont. Przed zastosowaniem sprawdzić bazę docelową i zachowanie danych zgłoszeń. Nie tworzyć nowej aplikacji zamiast obecnej.
+3. Zaplanować jednorazowe, jawnie uruchamiane utworzenie pierwszego administratora poza publicznym interfejsem, np. lokalnym poleceniem konfiguracji. Dane dostępowe pochodzą spoza repozytorium; nie dodawać stałego hasła do kodu ani automatycznego odtwarzania administratora przy każdym starcie. Przygotować logowanie i wylogowanie zgodne z Blazor Interactive Server. Omówić cookie uwierzytelniania, czyli zapis w przeglądarce pozwalający serwerowi rozpoznać zalogowaną osobę.
+4. Zastąpić przykładową tożsamość w układzie danymi zalogowanej osoby. Sprawdzić logowanie administratora poprawnym i błędnym hasłem, odświeżenie strony oraz wylogowanie. Pierwszy efekt: administrator może wejść na własne konto i zobaczyć, kto jest zalogowany.
+5. Dodać formularz tworzenia kolejnych kont dostępny wyłącznie administratorowi. Rola administratora i ochrona tej operacji na serwerze są potrzebne już w 4a, niezależnie od późniejszej pełnej macierzy uprawnień do zgłoszeń. Sprawdzić utworzenie konta, duplikat i logowanie nowego użytkownika oraz odrzucenie tworzenia kont przez osobę niezalogowaną i zwykłego użytkownika, również przez bezpośrednie wywołanie operacji. Samo ukrycie formularza nie wystarcza. Ten punkt nie oznacza jeszcze wdrożenia uprawnień do zgłoszeń.
+
+**4b. Autorzy powiązani z kontami:** ustalić sposób potraktowania dotychczasowych tekstowych autorów i przypisań, następnie zapisywać identyfikator zalogowanej osoby jako autora nowego zgłoszenia i komentarza. Użytkownik nie podaje autora dowolnym tekstem. Zasady dostępu dla niezalogowanej osoby sprawdzać na serwerze.
+
+**4c. Role, dostęp i przypisywanie:** uzgodnić macierz ról użytkownika, agenta SD i administratora oraz sposób nadawania ról. Nowe konto nie może samodzielnie nadać sobie roli uprzywilejowanej. Egzekwować dostęp do rekordów i notatek wewnętrznych podczas odczytu oraz uprawnienia podczas zapisu. Dodać „Przypisz do mnie” i próby dozwolonych oraz zabronionych operacji, w tym wejścia bezpośrednio na adres zgłoszenia.
 
 **Kryteria ukończenia:**
 
 - Logowanie i wylogowanie działają, a przykładowe dane profilu zastąpiono rzeczywistą tożsamością.
+- Pierwszy administrator powstaje w kontrolowanym procesie konfiguracji. Kolejne konta tworzy wyłącznie administrator; publiczna rejestracja nie jest dostępna, a zakaz tworzenia kont przez pozostałe osoby jest egzekwowany na serwerze.
 - Dla każdej roli sprawdzono dozwolone i zabronione odczyty oraz zapisy, w tym wejście bezpośrednio na adres obcego zgłoszenia.
 - Nieuprawniona osoba nie otrzymuje treści notatki wewnętrznej; samo ukrycie elementu UI nie wystarcza.
 - „Przypisz do mnie” zapisuje przypisanie do zalogowanej osoby bez dodatkowego zatwierdzenia; wynik pozostaje po odświeżeniu. Identyfikator pochodzi z tożsamości na serwerze, a nie z dowolnego tekstu z formularza.
