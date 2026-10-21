@@ -51,6 +51,10 @@
                             <option value="@TicketPriority.Highest">Najwyższy</option>
                         </InputSelect>
                     </span>
+                    @if (!string.IsNullOrWhiteSpace(updateErrorMessage))
+                    {
+                        <div class="comment-error" role="alert">@updateErrorMessage</div>
+                    }
                 </div>
                 <h1>@ticket.Title</h1>
             </div>
@@ -206,6 +210,7 @@
     private string commentContent = string.Empty;
     private string? errorMessage;
     private string? commentErrorMessage;
+    private string? updateErrorMessage;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -236,15 +241,23 @@
 
     private async Task ChangeStatus(TicketStatus newStatus)
     {
+        updateErrorMessage = null;
+
+        if (isUpdating)
+        {
+            updateErrorMessage = "Trwa już aktualizacja zgłoszenia";
+            return;
+        }
+
         if (TicketId is null || ticket is null)
         {
-            commentErrorMessage = "Nie wybrano ticketu.";
+            updateErrorMessage = "Nie wybrano ticketu.";
             return;
         }
 
         if (!Enum.IsDefined(newStatus))
         {
-            commentErrorMessage = "Wybierz prawidłowy Status.";
+            updateErrorMessage = "Wybierz prawidłowy Status.";
             return;
         }
 
@@ -256,10 +269,13 @@
 
             var ticketToUpdate = await dbContext.Tickets.FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
 
+            var nowDate = DateTime.UtcNow;
+
             if (ticketToUpdate is not null)
             {
                 ticketToUpdate.UpdatedAt = DateTime.UtcNow;
                 ticketToUpdate.Status = newStatus;
+                ticketToUpdate.ClosedAt = newStatus == TicketStatus.Closed ? nowDate : null;
             }
             else
             {
@@ -269,13 +285,13 @@
 
             await dbContext.SaveChangesAsync();
 
-            ticket.UpdatedAt = ticketToUpdate?.UpdatedAt ?? ticket.UpdatedAt;
+            ticket.UpdatedAt = ticketToUpdate?.UpdatedAt ?? DateTime.UtcNow;
             ticket.Status = newStatus;
-
+            ticket.ClosedAt = ticketToUpdate?.ClosedAt;
         }
         catch (Exception exception)
         {
-            errorMessage = $"Nie udało się pobrać ticketu: {exception.Message}";
+            updateErrorMessage = $"Nie udało się pobrać ticketu: {exception.Message}";
         }
         finally
         {
@@ -285,15 +301,23 @@
 
     private async Task ChangePriority(TicketPriority newPriority)
     {
+        updateErrorMessage = null;
+
+        if (isUpdating)
+        {
+            updateErrorMessage = "Trwa już aktualizacja zgłoszenia";
+            return;
+        }
+
         if (TicketId is null || ticket is null)
         {
-            commentErrorMessage = "Nie wybrano ticketu.";
+            updateErrorMessage = "Nie wybrano ticketu.";
             return;
         }
 
         if (!Enum.IsDefined(newPriority))
         {
-            commentErrorMessage = "Wybierz prawidłowy priorytet.";
+            updateErrorMessage = "Wybierz prawidłowy priorytet.";
             return;
         }
 
@@ -324,7 +348,7 @@
         }
         catch (Exception exception)
         {
-            errorMessage = $"Nie udało się pobrać ticketu: {exception.Message}";
+            updateErrorMessage = $"Nie udało się pobrać ticketu: {exception.Message}";
         }
         finally
         {
