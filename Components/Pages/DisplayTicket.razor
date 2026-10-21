@@ -149,6 +149,10 @@
                             <dd>@ticket.CreatedByUserId</dd>
                         </div>
                         <div>
+                            <dt>Karegoria</dt>
+                            <dd>@ticket.Category</dd>
+                        </div>
+                        <div>
                             <dt>Przypisany agent</dt>
                             <dd>@(string.IsNullOrWhiteSpace(ticket.AssignedAgentId) ? "Nieprzypisany" : ticket.AssignedAgentId)</dd>
                         </div>
@@ -184,7 +188,7 @@
     [Parameter]
     public int? TicketId { get; set; }
 
-    private Ticket? ticket;
+    private TicketData? ticket;
     private bool isLoading = true;
     private bool isAddingComment;
     private string commentAuthor = "Agent IT";

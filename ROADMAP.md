@@ -4,6 +4,7 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 ## Jak korzystać z planu
 
+- Bieżąca kolejność sesji i krótka lista do odhaczania: [TODO.md](TODO.md).
 - Pracujemy nad jednym małym zadaniem naraz. Każdy etap dzielimy na takie zadania przed jego implementacją.
 - Statusy: **do rozpoczęcia**, **w toku**, **wymaga weryfikacji**, **ukończony**. Obecność kodu nie oznacza ukończenia etapu.
 - Status aktualizujemy po faktycznej pracy i sprawdzeniach. Ukończenie wymaga spełnienia kryteriów funkcjonalnych i omówienia użytych mechanizmów z użytkownikiem, bez obowiązkowego egzaminu.

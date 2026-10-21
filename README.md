@@ -4,7 +4,7 @@ Projekt aplikacji HelpDesk do portfolio pod stanowiska związane z C#. Rozwój p
 
 Docelowo aplikacja ma obsługiwać użytkownika zgłaszającego problem, agenta Service Desk i administratora. Obecna wersja jest prototypem bez logowania i kontroli dostępu.
 
-[Zasady współpracy i nauki](AGENTS.md) · [Etapy rozwoju](ROADMAP.md)
+[Zasady współpracy i nauki](AGENTS.md) · [Etapy rozwoju](ROADMAP.md) · [Lista TODO](TODO.md)
 
 ## Technologie i sposób działania
 

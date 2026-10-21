@@ -77,28 +77,26 @@
                 <div class="form-stack">
                     <div>
                         <label>Kategoria</label>
-                        <div class="category-list">
-                            <label>
-                                <input type="radio" name="category" value="hardware" checked />
-                                <span class="material-symbols-outlined" aria-hidden="true">laptop_mac</span>
-                                Sprzęt
-                            </label>
-                            <label>
-                                <input type="radio" name="category" value="software" />
-                                <span class="material-symbols-outlined" aria-hidden="true">terminal</span>
-                                Oprogramowanie
-                            </label>
-                            <label>
-                                <input type="radio" name="category" value="network" />
-                                <span class="material-symbols-outlined" aria-hidden="true">router</span>
-                                Sieć
-                            </label>
-                            <label>
-                                <input type="radio" name="category" value="other" />
-                                <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
-                                Inne
-                            </label>
-                        </div>
+                        <InputRadioGroup @bind-Value="ticketDraft.Category">
+                            <div class="category-list">
+                                <label>
+                                    <InputRadio Value="TicketCategory.Hardware" />
+                                    Sprzęt
+                                </label>
+                                <label>
+                                    <InputRadio Value="TicketCategory.Software" />
+                                    Oprogramowanie
+                                </label>
+                                <label>
+                                    <InputRadio Value="TicketCategory.Network" />
+                                    Sieć
+                                </label>
+                                <label>
+                                    <InputRadio Value="TicketCategory.Other" />
+                                    Inne
+                                </label>
+                            </div>
+                        </InputRadioGroup>
                     </div>
 
                     <div>
@@ -135,7 +133,7 @@
 </div>
 
 @code {
-    private Ticket ticketDraft = CreateEmptyTicket();
+    private TicketData ticketDraft = CreateEmptyTicket();
     private bool submitted;
     private bool isSaving;
     private string? successMessage;
@@ -188,9 +186,9 @@
             && !string.IsNullOrWhiteSpace(ticketDraft.CreatedByUserId);
     }
 
-    private static Ticket CreateEmptyTicket()
+    private static TicketData CreateEmptyTicket()
     {
-        return new Ticket
+        return new TicketData
         {
             Status = "New",
             Priority = "Normal"

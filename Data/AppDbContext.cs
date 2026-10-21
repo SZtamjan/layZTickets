@@ -11,7 +11,7 @@ public class AppDbContext : DbContext
     {
     }
 
-    public DbSet<Ticket> Tickets => Set<Ticket>();
+    public DbSet<TicketData> Tickets => Set<TicketData>();
     public DbSet<TicketComment> TicketComments => Set<TicketComment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

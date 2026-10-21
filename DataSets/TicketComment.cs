@@ -10,6 +10,6 @@
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? EditedAt { get; set; }
 
-        public Ticket Ticket { get; set; } = default!;
+        public TicketData Ticket { get; set; } = default!;
     }
 }
