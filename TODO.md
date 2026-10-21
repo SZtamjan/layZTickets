@@ -1,6 +1,6 @@
 # TODO — layZTickets
 
-Krótka lista do odhaczania zamiast osobnego narzędzia do zadań. Plan zaktualizowano 21.10.2026 po przeglądzie commita `da2245f`; „następna sesja” oznacza kolejność pracy, nie termin.
+Krótka lista do odhaczania zamiast osobnego narzędzia do zadań. Stan na zakończenie sesji 21.10.2026: model i tabele Identity oraz konfiguracja usług są gotowe, użytkownik potwierdził uruchomienie aplikacji. Kolejna sesja planowana na 22.10.2026; rozpoczynamy od pierwszego administratora i logowania.
 
 Pracujemy nad jednym punktem naraz. Zaznacz `[x]` dopiero po sprawdzeniu opisanego efektu. Szczegółowe kryteria etapów i ich statusy są w [ROADMAP.md](ROADMAP.md).
 
@@ -11,6 +11,8 @@ Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek
 - [ ] **Identity: pierwsze konto, logowanie i wylogowanie** — etap 4a roadmapy
 
   Ustalono: wszystkie konta tworzy administrator; bez publicznej rejestracji. Ustalić dane konta, sposób pierwszego ustawienia hasła i potwierdzanie e-maila. Dodać Identity do obecnego .NET 8 i SQL Server oraz migrację. Przygotować jednorazowe lokalne utworzenie pierwszego administratora z danymi dostępowymi spoza repozytorium, następnie logowanie, wylogowanie i rzeczywistą tożsamość w układzie. Pierwszy efekt: administrator może się zalogować, odświeżyć stronę i wylogować.
+
+  Na kolejną sesję: ustalić dane logowania pierwszego administratora i sposób ich podania poza repozytorium, np. przez User Secrets. Przygotować jednorazowe, jawnie uruchamiane tworzenie roli administratora i konta przez usługi Identity; bez publicznej rejestracji, stałego hasła w kodzie i automatycznego tworzenia konta przy każdym starcie. Następnie dodać logowanie i wylogowanie zgodne z Blazor Interactive Server oraz wyświetlić rzeczywistą tożsamość w układzie. Model, migracja i konfiguracja usług są już gotowe; odczyt zgłoszeń i zachowanie danych po migracji pozostają do potwierdzenia.
 
 - [ ] **Tworzenie kolejnych kont przez administratora** — etap 4a
 
@@ -40,9 +42,25 @@ Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek
 
 - [ ] **Pusta baza z pełnego zestawu migracji** — etap 2
 
-  Sprawdzić utworzenie osobnej pustej bazy z aktualnych pięciu migracji, w tym kolumny `Category` i liczbowych kolumn `Status` oraz `Priority`. Wcześniejsza próba obejmowała tylko dwie pierwsze migracje.
+  Sprawdzić utworzenie osobnej pustej bazy z aktualnych sześciu migracji, w tym kolumny `Category`, liczbowych kolumn `Status` i `Priority` oraz tabel Identity. Wcześniejsza próba obejmowała tylko dwie pierwsze migracje.
 
 ## Wykonane
+
+- [x] **Identity — pakiet i model EF** — etap 4a
+
+  Dodano pakiet Identity 8.0.27 i `ApplicationUser : IdentityUser`. `AppDbContext` dziedziczy po `IdentityDbContext<ApplicationUser>` i wywołuje bazową konfigurację modelu przed konfiguracją komentarzy. Kompilacja bez błędów i ostrzeżeń. Kolejne kroki migracji i konfiguracji usług opisano osobno poniżej.
+
+- [x] **Identity — przygotowanie migracji** — etap 4a
+
+  Wygenerowano `20261021150554_AddIdentitySchema`. Przejrzano `Up()`, `Down()` i SQL: siedem tabel Identity z relacjami i indeksami, bez zmian tabel zgłoszeń. Kompilacja bez błędów i ostrzeżeń, model zgodny ze snapshotem. Podczas tego kroku nie zmieniano bazy; późniejsze zastosowanie opisano poniżej.
+
+- [x] **Identity — zastosowanie migracji i sprawdzenie struktury** — etap 4a
+
+  Użytkownik zastosował `AddIdentitySchema` i potwierdził sześć migracji bez `Pending`, siedem tabel `AspNet...` oraz `UserCount = 0`. Potwierdzenie pochodzi od użytkownika; agent nie wykonywał niezależnego odczytu bazy. Próba odczytu listy i szczegółów zgłoszeń oraz porównanie liczby zgłoszeń i komentarzy pozostają do potwierdzenia.
+
+- [x] **Identity — konfiguracja usług i uwierzytelniania** — 21.10.2026 · etap 4a
+
+  W `Program.cs` dodano `AddIdentity<ApplicationUser, IdentityRole>()`, `AddEntityFrameworkStores<AppDbContext>()`, `AddAuthorization()` i `AddCascadingAuthenticationState()`. `UseAuthentication()` oraz `UseAuthorization()` znajdują się przed `UseAntiforgery()`. Użytkownik potwierdził poprawne uruchomienie aplikacji; agent sprawdził konfigurację w kodzie. Samych kont, logowania, wylogowania ani uprawnień do zgłoszeń jeszcze nie zaimplementowano. Koniec pracy na 21.10.2026 — kontynuacja od pierwszego administratora.
 
 - [x] **Status i priorytet — podstawowy zapis po wyborze z listy** — 21.10.2026 · etap 3
 

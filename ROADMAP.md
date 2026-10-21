@@ -10,7 +10,7 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 - Status aktualizujemy po faktycznej pracy i sprawdzeniach. Ukończenie wymaga spełnienia kryteriów funkcjonalnych i omówienia użytych mechanizmów z użytkownikiem, bez obowiązkowego egzaminu.
 - Szczegółowe wymagania funkcji ustalamy przed ich wdrażaniem. Ta roadmapa nie rozstrzyga jeszcze macierzy uprawnień, reguł przejść statusów ani polityki załączników.
 - Zakres obsługi zgłoszeń: treść wysłanego zgłoszenia, komentarzy i notatek pozostaje bez edycji. Status i priorytet są zmieniane osobnymi listami rozwijanymi w szczegółach, z zapisem po wyborze, bez osobnego przycisku zapisu. Po wdrożeniu kont „Przypisz do mnie” od razu zapisze przypisanie do zalogowanej osoby; przypisywanie jest nadal planowaną funkcją.
-- Dokumentacja zaktualizowana 21.10.2026 po przeglądzie commita `da2245f` (`Improved error handling`). Etap 1 jest ukończony w zakresie istniejącego środowiska. W etapie 2 pozostała próba pustej bazy z aktualnego zestawu pięciu migracji. W etapie 3 zaimplementowano zmianę statusu i priorytetu; użytkownik potwierdził podstawowe działanie, agent kod i kompilację. Etap pozostaje w toku z opisanymi poniżej zaległymi regułami, sprawdzeniami i porządkami. Następny temat to etap 4a: konta i logowanie. Odtworzenie całego środowiska na czystym komputerze pozostaje do weryfikacji.
+- Stan na zakończenie sesji 21.10.2026. Etap 1 jest ukończony w zakresie istniejącego środowiska. W etapie 2 pozostała próba pustej bazy z aktualnego zestawu sześciu migracji. W etapie 3 zaimplementowano zmianę statusu i priorytetu; użytkownik potwierdził podstawowe działanie, agent kod i kompilację. Etap pozostaje w toku z opisanymi poniżej zaległymi regułami, sprawdzeniami i porządkami. W etapie 4a model, migracja i konfiguracja usług Identity są gotowe; użytkownik potwierdził zastosowanie migracji oraz uruchomienie aplikacji po konfiguracji usług. Kolejna sesja planowana na 22.10.2026: pierwszy administrator, następnie logowanie i wylogowanie. Odtworzenie całego środowiska na czystym komputerze pozostaje do weryfikacji.
 
 ## 1. Poznanie i uruchomienie istniejącej aplikacji
 
@@ -49,7 +49,7 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 **Dalsza weryfikacja:** po trzeciej migracji użytkownik potwierdził tworzenie i komentowanie wynikiem 8 zgłoszeń i 12 komentarzy. 21.10.2026 wygenerował `AddTicketCategory`; agent sprawdził, że dodaje wyłącznie kolumnę `Category` typu `int` z wartością domyślną `0`, bez odtwarzania tabel po zmianie klasy `Ticket` na `TicketData`. Kompilacja przeszła bez błędów i ostrzeżeń, a użytkownik potwierdził poprawne działanie kategorii po migracji.
 
-**Pozostało:** utworzenie pustej bazy z aktualnymi pięcioma migracjami. Logika operacji nadal znajduje się w komponentach — zakres ewentualnego wydzielenia wymaga osobnego małego zadania. Próby dotyczą lokalnego środowiska.
+**Pozostało:** utworzenie pustej bazy z aktualnymi sześcioma migracjami. Logika operacji nadal znajduje się w komponentach — zakres ewentualnego wydzielenia wymaga osobnego małego zadania. Próby dotyczą lokalnego środowiska.
 
 **Kryteria ukończenia:**
 
@@ -89,11 +89,21 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 ## 4. Konta, role i granice dostępu
 
-**Status:** do rozpoczęcia — następny etap pracy. Rozpisano plan; Identity, konta i logowanie nie są jeszcze zaimplementowane.
+**Status:** w toku — przygotowano model i tabele Identity oraz konfigurację usług kont, ról, uwierzytelniania przez cookie i autoryzacji. Użytkownik potwierdził migrację i uruchomienie aplikacji po konfiguracji. Ostatni potwierdzony stan kont: zero użytkowników. Pierwszy administrator, strony logowania i wylogowania oraz uprawnienia do zgłoszeń pozostają do wykonania.
 
 **Efekt:** logowanie i wylogowanie oraz egzekwowane na serwerze uprawnienia ról użytkownika, agenta SD i administratora.
 
 **Nauka:** uwierzytelnianie a autoryzacja, tożsamość użytkownika, role/polityki, dostęp do konkretnego rekordu i obsługa kont.
+
+**Przygotowanie modelu — wykonano:** użytkownik dodał pakiet `Microsoft.AspNetCore.Identity.EntityFrameworkCore` 8.0.27 i klasę `ApplicationUser : IdentityUser`. Dostosowano `AppDbContext` do `IdentityDbContext<ApplicationUser>` i dodano `base.OnModelCreating(modelBuilder)` przed własną konfiguracją komentarzy. Kontekst obejmuje teraz model użytkowników i ról Identity obok zgłoszeń. Kompilacja: 0 błędów i ostrzeżeń. Polecenie `has-pending-model-changes` poprawnie wskazuje zmiany wymagające nowej migracji; nie generowano jej i nie zmieniano bazy. Nie sprawdzano jeszcze kont ani logowania, ponieważ nie są zaimplementowane.
+
+**Przygotowanie migracji — wykonano:** wygenerowano `20261021150554_AddIdentitySchema` oraz metadane i snapshot. `Up()` tworzy siedem tabel Identity z kluczami, relacjami i indeksami; nie zmienia `Tickets` ani `TicketComments`. `Down()` usuwa wyłącznie tabele Identity wraz z ich ewentualną zawartością. Sprawdzono pliki, wygenerowany SQL, kompilację (0 błędów i ostrzeżeń) oraz zgodność modelu ze snapshotem. Na etapie generowania nie łączono się z bazą.
+
+**Zastosowanie migracji — potwierdzone przez użytkownika:** wykonano `database update AddIdentitySchema` i sprawdzono listę migracji przed i po. Użytkownik potwierdził sześć migracji bez `Pending`, siedem tabel `AspNet...` oraz `UserCount = 0`. Agent nie wykonywał niezależnej próby z bazą. Odczyt zgłoszeń i porównanie ich liczby oraz liczby komentarzy po tej migracji pozostają do potwierdzenia.
+
+**Konfiguracja usług — wykonano:** użytkownik dodał do `Program.cs` `AddIdentity<ApplicationUser, IdentityRole>()` z magazynami EF dla `AppDbContext`, `AddAuthorization()` i `AddCascadingAuthenticationState()`. Wywołania `UseAuthentication()` oraz `UseAuthorization()` poprzedzają `UseAntiforgery()`. Agent potwierdził te zmiany w kodzie; użytkownik potwierdził poprawne uruchomienie aplikacji. Omówiono usługi kont i ról, cookie oraz różnicę między uwierzytelnianiem i autoryzacją. Nie zmieniano w tym kroku schematu bazy. Nie sprawdzano rzeczywistego logowania ani dostępu do zgłoszeń, ponieważ odpowiednie funkcje nie są jeszcze zaimplementowane.
+
+**Punkt wznowienia na 22.10.2026:** ustalić dane logowania i lokalny sposób podania sekretów pierwszego administratora, np. User Secrets. Następnie przygotować jednorazowe tworzenie roli i konta przez `RoleManager` oraz `UserManager`, uruchamiane świadomie poza publicznym interfejsem. Potem dodać logowanie i wylogowanie zgodne z Blazor Interactive Server, pokazać tożsamość w układzie i sprawdzić hasło poprawne oraz błędne, odświeżenie i wylogowanie. Wszystkie kolejne konta nadal tworzy administrator. Na koniec sesji 21.10.2026 nie rozpoczynano tych prac.
 
 **Praca:** konta tworzy wyłącznie administrator; nie udostępniamy publicznej rejestracji ani publicznej operacji tworzenia kont. Przed implementacją ustalić szczegóły zakładania kont, a następnie macierz uprawnień do zgłoszeń. Powiązać autorów i przypisania z kontami, ustalając los dotychczasowych tekstowych danych. Zaimplementować przydzielanie zgłoszeń zgodnie z macierzą. Kliknięcie „Przypisz do mnie” od razu uruchamia zapis przypisania w bazie; serwer ustala identyfikator zalogowanej osoby i sprawdza jej uprawnienia. Ustalić zasady przejęcia już przypisanego zgłoszenia i aktualizacji daty. Chronić notatki wewnętrzne także przy pobieraniu danych. Objąć uprawnieniami również zmianę statusu i priorytetu.
 

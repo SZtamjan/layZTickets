@@ -28,13 +28,13 @@ Stan analizy i weryfikacji: **21 października 2026 r.** Poniższa tabela opisuj
 | Tworzenie zgłoszenia | Formularz, sprawdzanie wymaganych pól, jeden zapis do bazy, priorytet i tekstowo wpisywani zgłaszający oraz agent; numer `IT-{Id}` wyliczany w C# bez zer wiodących |
 | Lista zgłoszeń | Odczyt 10 najnowszych rekordów i przejście do szczegółów |
 | Szczegóły i komentarze | Odczyt zgłoszenia z komentarzami; zapis odpowiedzi i notatek z flagą `IsInternal` |
-| Schemat bazy | Pięć migracji EF Core; strony nie tworzą ani nie aktualizują schematu; `TicketNumber` nie jest kolumną bazy |
+| Schemat bazy | Sześć migracji EF Core; użytkownik potwierdził zastosowanie `AddIdentitySchema`, brak oczekujących migracji i siedem tabel Identity. Strony nie tworzą ani nie aktualizują schematu; `TicketNumber` nie jest kolumną bazy |
 | Kategorie | Cztery wartości enuma `TicketCategory`; wybór w formularzu zapisuje się jako `int`, serwer sprawdza dozwoloną wartość przez `Enum.IsDefined`, szczegóły mapują ją na polską nazwę przez `GetCategoryName`; pozostają drobne poprawki tekstów |
 | Statusy i priorytety | `TicketStatus` i `TicketPriority` przechowywane jako `int`; wybór z listy w szczegółach zapisuje odpowiednie pole i `UpdatedAt`. Zamknięcie ustawia `ClosedAt`, a inny status ją czyści. Podstawowy zapis sprawdzony przez użytkownika; pełna weryfikacja dat i błędów pozostaje do wykonania |
 | Pozostałe przyciski w szczegółach | „Edytuj”, „Zmień status” i „Przypisz do mnie” nadal są nieaktywne. Status zmienia się listą; dwa pierwsze przyciski przeznaczono do usunięcia. Tekstowe przypisanie można podać przy tworzeniu |
 | Filtry, wyszukiwarka, paginacja | Elementy interfejsu bez zaimplementowanej logiki |
 | Załączniki | Makieta interfejsu, bez przesyłania i przechowywania plików |
-| Logowanie i role | Brak uwierzytelniania i autoryzacji; dane profilu w układzie są przykładowe |
+| Logowanie i role | Model i tabele Identity oraz usługi kont, ról, uwierzytelniania przez cookie i autoryzacji są skonfigurowane. Użytkownik potwierdził uruchomienie aplikacji; ostatni potwierdzony `UserCount = 0`. Pierwszego administratora, logowania, wylogowania i uprawnień do zgłoszeń jeszcze nie zaimplementowano. Dane profilu w układzie są przykładowe |
 | Dashboard | Strona główna nadal zawiera treść szablonu |
 | Przykłady z szablonu | Pozostały strony Counter i Weather; licznik korzysta z serwisu zapisu JSON |
 
@@ -51,10 +51,11 @@ Stan analizy i weryfikacji: **21 października 2026 r.** Poniższa tabela opisuj
 
 | Miejsce | Odpowiedzialność |
 | --- | --- |
-| `Program.cs` | Konfiguracja aplikacji, usług, fabryki kontekstów EF i trybu renderowania |
+| `Program.cs` | Konfiguracja aplikacji, fabryki kontekstów EF, usług Identity, uwierzytelniania, autoryzacji i trybu renderowania |
 | `Components/Pages/` | Strony, formularze i obecna logika operacji na zgłoszeniach |
 | `Components/Layout/`, `Components/App.razor`, `Components/Routes.razor` | Układ, dokument HTML i routing |
-| `Data/AppDbContext.cs` | Zestawy encji i konfiguracja modelu EF |
+| `Data/AppDbContext.cs` | Kontekst dziedziczący po `IdentityDbContext<ApplicationUser>`; model kont i ról Identity oraz zestawy zgłoszeń i komentarzy |
+| `Data/ApplicationUser.cs` | Typ konta dziedziczący po `IdentityUser`; nie reprezentuje sam w sobie sesji zalogowanej osoby |
 | `DataSets/` | Modele `TicketData` i `TicketComment` oraz enumy `TicketCategory`, `TicketStatus` i `TicketPriority` |
 | `Migrations/` | Zmiany struktury bazy, metadane migracji i snapshot modelu, czyli jego zapis do porównania przy kolejnych zmianach |
 | `dotnet-tools.json` | Manifest lokalnego narzędzia `dotnet-ef` w wersji 8.0.27 |
@@ -142,12 +143,15 @@ dotnet build layZTickets.sln --no-restore
 | `20261020184200_RemoveStoredTicketNumber` | Usunięcie indeksu i kolumny `TicketNumber`; aktualny numer jest wyliczany z `Id` w C# |
 | `20261021100725_AddTicketCategory` | Kolumna `Tickets.Category` typu `int`, wymagana, z wartością domyślną `0` (`Other`) dla istniejących zgłoszeń |
 | `20261021122842_ConvertTicketStatusAndPriorityToEnums` | Konwersja `Status` i `Priority` z tekstu na `int` zgodnie z enumami; dawne `Critical` odpowiada `Highest = 3` |
+| `20261021150554_AddIdentitySchema` | Siedem tabel Identity (`AspNetUsers`, `AspNetRoles`, `AspNetUserRoles`, `AspNetUserClaims`, `AspNetRoleClaims`, `AspNetUserLogins`, `AspNetUserTokens`) wraz z relacjami i indeksami; bez zmian tabel zgłoszeń. Zastosowanie potwierdzone przez użytkownika |
 
 Migracje opisują kolejne decyzje projektowe: pierwsza tworzyła kolumnę numeru, druga dodała indeks, a trzecia usuwa obie struktury. Po zastosowaniu wszystkich trzech baza nie przechowuje numeru zgłoszenia. `Down()` trzeciej migracji przywraca kolumnę z pustymi wartościami i indeks, ale nie odtwarza historycznej zawartości usuniętej kolumny; przed jej usunięciem wykonano i zweryfikowano backup kopii bazy.
 
 Czwarta migracja dodaje kategorię: `Other = 0` (Inne), `Hardware = 1` (Sprzęt), `Software = 2` (Oprogramowanie), `Network = 3` (Sieć). W modelu C# jest to enum, w SQL Server liczba całkowita. `InputRadioGroup` aktualizuje `ticketDraft.Category`, a zapis zgłoszenia obejmuje tę właściwość bez osobnego przypisania. Znaczenie zapisanych wartości liczbowych enuma powinno pozostać stałe.
 
 Piąta migracja mapuje tekstowe statusy na `New = 0`, `InProgress = 1`, `Pending = 2`, `Closed = 3`, a priorytety na `Low = 0`, `Normal = 1`, `High = 2`, `Highest = 3`. Najpierw zamienia nazwy na tekstowe liczby, a następnie zmienia typ obu kolumn na `int` w transakcji migracji. Dawne `Critical` oraz tekstowe `Highest` oznaczają wartość `3`; nierozpoznana wartość przerywa migrację. `Down()` przywraca tekstowe nazwy, używając dawnego `Critical` dla najwyższego priorytetu. Formularz tworzenia korzysta z nazw obecnego enuma, w tym `Highest` zamiast `Critical`.
+
+Szósta migracja tworzy strukturę Identity. Samo wygenerowanie plików i skryptu SQL nie wykonuje zmian w bazie. Użytkownik zastosował ją i potwierdził sześć migracji bez `Pending`, siedem tabel `AspNet...` i `UserCount = 0`. Migracja nie tworzy administratora, nie uruchamia logowania ani nie wiąże dotychczasowych tekstowych autorów zgłoszeń z kontami. `Down()` usuwa siedem tabel Identity wraz z ich ewentualną zawartością, bez usuwania tabel zgłoszeń. Przed stosowaniem migracji w innym środowisku trzeba sprawdzić docelowe połączenie i stan bazy.
 
 Dla nowej bazy, po ustawieniu przykładowego połączenia powyżej:
 
@@ -222,7 +226,10 @@ Profil `https` określa adresy `https://localhost:7261` i `http://localhost:5269
 | Walidacja kategorii | Użytkownik wymusił `(TicketCategory)9999` przed warunkiem i potwierdził komunikat błędu oraz brak nowego zgłoszenia. Agent potwierdził `Enum.IsDefined` przed dostępem do bazy, poprawną kompilację i usunięcie testowego przypisania |
 | Statusy i priorytety po piątej migracji | Agent zastosował migrację do `layZTicketsDb`: obie kolumny mają typ `int`, historia zawiera 5 migracji. Zachowano 9 zgłoszeń i 12 komentarzy; skróty SHA-256 wszystkich pól zgłoszeń po uwzględnieniu mapowania oraz wszystkich pól komentarzy są zgodne. Statusy: 9 × `New`; priorytety: 6 × `Normal`, 3 × `Highest` (dawne `Critical`). Kompilacja bez błędów i ostrzeżeń, model zgodny ze snapshotem. Formularza po tej migracji nie sprawdzano interaktywnie; cofania migracji nie wykonywano |
 | Zmiana statusu i priorytetu w szczegółach | Użytkownik potwierdził podstawowe działanie podczas ręcznych prób. Agent sprawdził kod po commicie `da2245f` (`Improved error handling`) i kompilację: 0 błędów, 0 ostrzeżeń. Kod zapisuje pola i daty, blokuje nakładające się wywołania, rozdziela błędy odczytu od aktualizacji i czyści `ClosedAt` przy ponownym otwarciu. Agent nie wykonywał własnych prób z bazą ani interfejsem tej wersji. Trwałość ostatnich zmian dat, błędy zapisu i ponowienie wymagają dalszych prób |
-| Pusta baza z aktualnymi pięcioma migracjami | Do sprawdzenia; dotychczasowy test pustej bazy obejmował dwie pierwsze migracje |
+| Przygotowanie migracji Identity | Agent wygenerował `20261021150554_AddIdentitySchema`, przejrzał `Up()` i `Down()` oraz wygenerowany SQL: wyłącznie siedem tabel Identity z relacjami i indeksami, bez zmian `Tickets` i `TicketComments`. Kompilacja: 0 błędów i ostrzeżeń; model zgodny ze snapshotem. Nie łączono się z bazą ani nie stosowano tej migracji |
+| Zastosowanie migracji Identity | Użytkownik zastosował migrację i potwierdził sześć migracji bez `Pending`, siedem tabel `AspNet...` i `UserCount = 0`. Agent nie wykonywał niezależnego sprawdzenia bazy. Odczyt listy i szczegółów zgłoszeń po tej migracji oraz porównanie liczby zgłoszeń i komentarzy pozostają do potwierdzenia |
+| Konfiguracja usług Identity | Agent sprawdził w `Program.cs` rejestrację kont, ról, magazynów EF, autoryzacji i stanu uwierzytelnienia dla Blazora oraz kolejność `UseAuthentication`, `UseAuthorization` i `UseAntiforgery`. Użytkownik potwierdził poprawne uruchomienie aplikacji. Nie wykonywano jeszcze prób tworzenia kont, logowania, wylogowania ani egzekwowania uprawnień do zgłoszeń |
+| Pusta baza z aktualnymi sześcioma migracjami | Do sprawdzenia; dotychczasowy test pustej bazy obejmował dwie pierwsze migracje |
 | Testy automatyczne | Brak projektu testowego |
 
 Przed zmianami użytkownik potwierdził tworzenie zgłoszeń, ich obecność na liście, szczegóły, odpowiedzi, notatki i trwałość po odświeżeniu. Po usunięciu kodu poprawiającego schemat powtórzył główne operacje na kopii po migracjach, potwierdzając poprawny odczyt, zapis i aktualizację daty. Próba pustej bazy potwierdza przygotowanie struktury, nie obejmowała jeszcze interfejsu tej bazy.
