@@ -24,6 +24,7 @@ builder.Services
     .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>();
 
 builder.Services.AddAuthorization();
+builder.Services.AddScoped<AccountAdministration>();
 builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.ConfigureApplicationCookie(options =>

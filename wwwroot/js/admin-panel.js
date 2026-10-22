@@ -1,10 +1,10 @@
 (() => {
     function reopenCreateUserPanel() {
-        const panel = document.querySelector('#create-user-panel[data-reopen="true"]');
-
-        if (panel && !panel.matches(':popover-open')) {
-            panel.showPopover();
-            panel.querySelector('[data-form-feedback]')?.focus();
+        for (const panel of document.querySelectorAll('.create-user-drawer[data-reopen="true"]')) {
+            if (!panel.matches(':popover-open')) {
+                panel.showPopover();
+                panel.querySelector('[data-form-feedback]')?.focus();
+            }
         }
     }
 

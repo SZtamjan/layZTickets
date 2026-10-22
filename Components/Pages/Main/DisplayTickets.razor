@@ -4,6 +4,7 @@
 @using layZTickets.Data
 @using layZTickets.DataSets
 @inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Wszystkie Zgłoszenia</PageTitle>
 
@@ -137,8 +138,15 @@
         try
         {
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var actor = await TicketAccess.GetActorAsync(dbContext, authentication.User);
+            if (actor is null)
+            {
+                errorMessage = "Zaloguj się ponownie, aby wyświetlić zgłoszenia.";
+                return;
+            }
 
-            tickets = await dbContext.Tickets
+            tickets = await TicketAccess.VisibleTickets(dbContext, actor)
                 .Include(ticket => ticket.CreatedByUser)
                 .Include(ticket => ticket.AssignedAgent)
                 .AsNoTracking()

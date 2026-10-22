@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace layZTickets.DataSets;
 
 // Dane formularza tworzenia konta, bez mapowania na tabelę bazy danych.
-public class UserData
+public class UserData : AccountRoleSelection
 {
     [Required(ErrorMessage = "Podaj imię.")]
     [StringLength(100, ErrorMessage = "Imię może mieć najwyżej 100 znaków.")]

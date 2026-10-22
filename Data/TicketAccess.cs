@@ -9,6 +9,11 @@ public sealed record TicketActor(ApplicationUser Account, bool IsAgent, bool IsA
 {
     public bool CanAssign => IsAgent || IsAdmin;
     public bool CanReadInternal => IsAgent || IsAdmin;
+    public bool CanReadAll => IsAgent || IsAdmin;
+    public bool CanChangeStatus => IsAgent || IsAdmin;
+
+    public bool CanRead(TicketData ticket) => CanReadAll || ticket.CreatedByUserId == Account.Id;
+    public bool CanChangePriority(TicketData ticket) => CanRead(ticket);
 
     public bool CanReply(TicketData ticket) => IsAdmin || (IsAgent
         ? Account.AgentCategory == ticket.Category
@@ -17,6 +22,9 @@ public sealed record TicketActor(ApplicationUser Account, bool IsAgent, bool IsA
 
 public static class TicketAccess
 {
+    public static IQueryable<TicketData> VisibleTickets(AppDbContext db, TicketActor actor)
+        => db.Tickets.Where(ticket => actor.CanReadAll || ticket.CreatedByUserId == actor.Account.Id);
+
     public static async Task<TicketActor?> GetActorAsync(AppDbContext db, ClaimsPrincipal principal,
         CancellationToken cancellationToken = default)
     {

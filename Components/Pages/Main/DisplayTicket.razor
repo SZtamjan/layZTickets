@@ -26,7 +26,7 @@
     {
         <div class="desk-empty">
             <h1>Nie znaleziono ticketu</h1>
-            <p>Wybrane zgłoszenie nie istnieje albo zostało usunięte.</p>
+            <p>Wybrane zgłoszenie nie istnieje albo nie masz do niego dostępu.</p>
             <a class="desk-primary-button mt-3" href="DisplayTickets">Wróć do listy</a>
         </div>
     }
@@ -38,16 +38,23 @@
                     <span class="ticket-code">#@ticket.TicketNumber</span>
                     <span class="detail-chip">
                         <span class="material-symbols-outlined" aria-hidden="true">fiber_manual_record</span>
-                        <InputSelect id="ticket-status" class="desk-input" @bind-Value:get="ticket.Status" @bind-Value:set="ChangeStatus" disabled="@isUpdating">
-                            <option value="@TicketStatus.New">Nowe</option>
-                            <option value="@TicketStatus.InProgress">W trakcie</option>
-                            <option value="@TicketStatus.Pending">Oczekujące</option>
-                            <option value="@TicketStatus.Closed">Zamknięte</option>
-                        </InputSelect>
+                        @if (canChangeStatus)
+                        {
+                            <InputSelect id="ticket-status" class="desk-input" @bind-Value:get="ticket.Status" @bind-Value:set="ChangeStatus" disabled="@isUpdating">
+                                <option value="@TicketStatus.New">Nowe</option>
+                                <option value="@TicketStatus.InProgress">W trakcie</option>
+                                <option value="@TicketStatus.Pending">Oczekujące</option>
+                                <option value="@TicketStatus.Closed">Zamknięte</option>
+                            </InputSelect>
+                        }
+                        else
+                        {
+                            <span id="ticket-status">@GetStatusName(ticket.Status)</span>
+                        }
                     </span>
                     <span class="detail-chip">
                         <span class="material-symbols-outlined" aria-hidden="true">priority_high</span>
-                        <InputSelect id="ticket-priority" class="desk-input" @bind-Value:get="ticket.Priority" @bind-Value:set="ChangePriority" disabled="@isUpdating">
+                        <InputSelect id="ticket-priority" class="desk-input" @bind-Value:get="ticket.Priority" @bind-Value:set="ChangePriority" disabled="@(isUpdating || !canChangePriority)">
                             <option value="@TicketPriority.Low">Niski</option>
                             <option value="@TicketPriority.Normal">Normalny</option>
                             <option value="@TicketPriority.High">Wysoki</option>
@@ -120,7 +127,7 @@
 
                     @if (canReply)
                     {
-                        <textarea class="reply-textarea" @bind="commentContent" @bind:event="oninput" placeholder="Wpisz odpowiedź dla użytkownika lub notatkę..."></textarea>
+                        <textarea class="reply-textarea" @bind="commentContent" @bind:event="oninput" placeholder="@(canReadInternal ? "Wpisz odpowiedź lub notatkę..." : "Wpisz odpowiedź...")"></textarea>
                         <footer>
                             <button type="button">
                                 <span class="material-symbols-outlined" aria-hidden="true">attach_file</span>
@@ -207,6 +214,8 @@
     private bool canReply;
     private bool canAssign;
     private bool canReadInternal;
+    private bool canChangeStatus;
+    private bool canChangePriority;
 
     private void HandleAssigned(AgentAssignment.AssignmentResult result)
     {
@@ -219,6 +228,7 @@
     protected override async Task OnParametersSetAsync()
     {
         canReply = false; canAssign = false; canReadInternal = false;
+        canChangeStatus = false; canChangePriority = false;
         ticket = null; errorMessage = null; isLoading = true;
         if (TicketId is null)
         {
@@ -239,7 +249,7 @@
             canReadInternal = actor.CanReadInternal;
             canAssign = actor.CanAssign;
 
-            ticket = await dbContext.Tickets
+            ticket = await TicketAccess.VisibleTickets(dbContext, actor)
                 .Include(ticket => ticket.CreatedByUser)
                 .Include(ticket => ticket.AssignedAgent)
                 .Include(ticket => ticket.Comments.Where(comment => canReadInternal || !comment.IsInternal))
@@ -247,6 +257,8 @@
                 .AsNoTracking()
                 .FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
             canReply = ticket is not null && actor.CanReply(ticket);
+            canChangeStatus = ticket is not null && actor.CanChangeStatus;
+            canChangePriority = ticket is not null && actor.CanChangePriority(ticket);
         }
         catch (Exception exception)
         {
@@ -285,8 +297,15 @@
         try
         {
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var actor = await TicketAccess.GetActorAsync(dbContext, authentication.User);
+            if (actor?.CanChangeStatus != true)
+            {
+                updateErrorMessage = "Nie masz uprawnień do zmiany statusu zgłoszenia.";
+                return;
+            }
 
-            var ticketToUpdate = await dbContext.Tickets.FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
+            var ticketToUpdate = await TicketAccess.VisibleTickets(dbContext, actor).FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
 
             var nowDate = DateTime.UtcNow;
 
@@ -345,8 +364,15 @@
         try
         {
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var actor = await TicketAccess.GetActorAsync(dbContext, authentication.User);
+            if (actor is null)
+            {
+                updateErrorMessage = "Zaloguj się ponownie, aby zmienić priorytet.";
+                return;
+            }
 
-            var ticketToUpdate = await dbContext.Tickets.FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
+            var ticketToUpdate = await TicketAccess.VisibleTickets(dbContext, actor).FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
 
             if (ticketToUpdate is not null)
             {
@@ -355,7 +381,7 @@
             }
             else
             {
-                errorMessage = "Zgłoszenie już nie istnieje.";
+                updateErrorMessage = "Nie znaleziono zgłoszenia lub nie masz do niego dostępu.";
                 return;
             }
 
@@ -420,10 +446,10 @@
             }
             var author = actor.Account;
 
-            var ticketToUpdate = await dbContext.Tickets.FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
+            var ticketToUpdate = await TicketAccess.VisibleTickets(dbContext, actor).FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
             if (ticketToUpdate is null)
             {
-                commentErrorMessage = "Zgłoszenie już nie istnieje.";
+                commentErrorMessage = "Nie znaleziono zgłoszenia lub nie masz do niego dostępu.";
                 return;
             }
 
@@ -467,6 +493,15 @@
     {
         return date?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "Brak";
     }
+
+    private static string GetStatusName(TicketStatus status) => status switch
+    {
+        TicketStatus.New => "Nowe",
+        TicketStatus.InProgress => "W trakcie",
+        TicketStatus.Pending => "Oczekujące",
+        TicketStatus.Closed => "Zamknięte",
+        _ => "Nieznany status"
+    };
 
     private static string GetInitials(string value)
     {
