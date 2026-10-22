@@ -41,7 +41,7 @@
                     <span>
                         <strong>@GetDisplayName(authState.User)</strong>
                         <span class="sidebar-role">
-                            @(authState.User.IsInRole("Admin") ? "Administrator" : "Użytkownik")
+                            @(authState.User.IsInRole("Admin") ? "Administrator" : authState.User.IsInRole("Agent") ? "Agent" : "Użytkownik")
                         </span>
                     </span>
                 </summary>

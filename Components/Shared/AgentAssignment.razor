@@ -1,0 +1,192 @@
+@using layZTickets.Data
+@using Microsoft.EntityFrameworkCore
+@implements IDisposable
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<AgentAssignment> Logger
+
+<section class="side-card agent-picker">
+    <h2>Przypisz agenta</h2>
+    <label for="agent-search">Imię, nazwisko lub login</label>
+    <input id="agent-search" class="desk-input" type="text" role="combobox" autocomplete="off"
+           data-agent-search aria-autocomplete="list" aria-expanded="@isOpen.ToString().ToLowerInvariant()"
+           aria-controls="agent-results" aria-activedescendant="@ActiveOptionId" aria-describedby="agent-search-help"
+           @bind="searchText" @bind:event="oninput" @bind:after="ScheduleSearchAsync"
+           @onkeydown="HandleKeyAsync" @onblur="CloseSuggestions"
+           disabled="@isAssigning" />
+    <small id="agent-search-help">Minimum 3 znaki. Wyniki po sekundzie przerwy w pisaniu.</small>
+    @if (isSearching)
+    {
+        <p role="status">Wyszukiwanie...</p>
+    }
+    @if (isOpen)
+    {
+        <div class="agent-suggestions">
+            <ul id="agent-results" role="listbox" aria-label="Agenci pasujący do kategorii">
+                @for (var index = 0; index < suggestions.Count; index++)
+                {
+                    var option = suggestions[index];
+                    var selected = index == activeIndex;
+                    <li role="option" id="@($"agent-option-{index}")" aria-selected="@selected.ToString().ToLowerInvariant()">
+                        <button type="button" tabindex="-1" class="@(selected ? "active" : null)"
+                                @onpointerdown:preventDefault @onpointerdown="() => AssignAgentAsync(option.Id)"
+                                @onclick="() => AssignAgentAsync(option.Id)">
+                            <strong>@option.Name</strong><span>@option.Login</span>
+                        </button>
+                    </li>
+                }
+            </ul>
+            @if (suggestions.Count == 0)
+            {
+                <p>Brak pasujących agentów w tej kategorii.</p>
+            }
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <p class="comment-error" role="alert">@error</p>
+    }
+    @if (!string.IsNullOrWhiteSpace(success))
+    {
+        <p role="status">@success</p>
+    }
+</section>
+
+@code {
+    [Parameter] public int TicketId { get; set; }
+    [Parameter] public EventCallback<AssignmentResult> Assigned { get; set; }
+
+    public sealed record AgentOption(string Id, string Name, string Login);
+    public sealed record AssignmentResult(int TicketId, ApplicationUser Agent, DateTime? UpdatedAt);
+    private string searchText = string.Empty;
+    private List<AgentOption> suggestions = new();
+    private int activeIndex = -1;
+    private bool isOpen;
+    private bool isSearching;
+    private bool isAssigning;
+    private bool disposed;
+    private string? error;
+    private string? success;
+    private CancellationTokenSource? searchCancellation;
+    private string? ActiveOptionId => isOpen && activeIndex >= 0 ? $"agent-option-{activeIndex}" : null;
+
+    private Task ScheduleSearchAsync() => SearchChangedAsync(new ChangeEventArgs { Value = searchText });
+
+    private async Task SearchChangedAsync(ChangeEventArgs args)
+    {
+        if (isAssigning || disposed) return;
+        CancelSearch();
+        searchText = args.Value?.ToString() ?? string.Empty;
+        suggestions.Clear(); activeIndex = -1; isOpen = false; error = null; success = null;
+        var term = searchText.Trim();
+        if (term.Length < 3) return;
+
+        var cancellation = new CancellationTokenSource();
+        searchCancellation = cancellation;
+        var requestedTicketId = TicketId;
+        isSearching = true;
+        try
+        {
+            // Debounce: a new keystroke cancels the delay and any older SQL query.
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellation.Token);
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            await using var db = await DbContextFactory.CreateDbContextAsync(cancellation.Token);
+            var actor = await TicketAccess.GetActorAsync(db, authentication.User, cancellation.Token);
+            if (actor?.CanAssign != true)
+            {
+                error = "Przypisywać agentów może tylko agent lub administrator.";
+                return;
+            }
+            var ticket = await db.Tickets.AsNoTracking().SingleOrDefaultAsync(t => t.Id == requestedTicketId, cancellation.Token);
+            if (ticket is null) { error = "Zgłoszenie już nie istnieje."; return; }
+
+            var matches = await TicketAccess.EligibleAgents(db, ticket.Category)
+                .Where(agent => (agent.FirstName + " " + agent.LastName).Contains(term) ||
+                    (agent.UserName != null && agent.UserName.Contains(term)))
+                .OrderBy(agent => agent.LastName).ThenBy(agent => agent.FirstName).ThenBy(agent => agent.Id)
+                .Select(agent => new AgentOption(agent.Id,
+                    (agent.FirstName + " " + agent.LastName).Trim(), agent.UserName ?? ""))
+                .Take(10).ToListAsync(cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            if (disposed || requestedTicketId != TicketId) return;
+            suggestions = matches; activeIndex = matches.Count == 0 ? -1 : 0; isOpen = true;
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            if (!cancellation.IsCancellationRequested && !disposed)
+            {
+                Logger.LogError(exception, "Nie udało się wyszukać agentów dla zgłoszenia {TicketId}.", requestedTicketId);
+                error = "Nie udało się wyszukać agentów. Spróbuj ponownie.";
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(searchCancellation, cancellation))
+            {
+                searchCancellation = null;
+                isSearching = false;
+            }
+            cancellation.Dispose();
+        }
+    }
+
+    private async Task HandleKeyAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape") { CloseSuggestions(); return; }
+        if (!isOpen || suggestions.Count == 0 || isAssigning) return;
+        if (args.Key == "ArrowDown") activeIndex = (activeIndex + 1) % suggestions.Count;
+        else if (args.Key == "ArrowUp") activeIndex = (activeIndex - 1 + suggestions.Count) % suggestions.Count;
+        else if (args.Key == "Enter" && activeIndex >= 0) await AssignAgentAsync(suggestions[activeIndex].Id);
+    }
+
+    private async Task AssignAgentAsync(string agentId)
+    {
+        if (isAssigning || disposed) return;
+        var requestedTicketId = TicketId;
+        isAssigning = true; error = null; success = null;
+        CancelSearch(); isOpen = false;
+        try
+        {
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+            var actor = await TicketAccess.GetActorAsync(db, authentication.User);
+            if (actor?.CanAssign != true)
+            { error = "Przypisywać agentów może tylko agent lub administrator."; return; }
+
+            var ticket = await db.Tickets.SingleOrDefaultAsync(t => t.Id == requestedTicketId);
+            if (ticket is null) { error = "Zgłoszenie już nie istnieje."; return; }
+            // Repeat the eligibility check at save time; do not trust a previous suggestion.
+            var agent = await TicketAccess.EligibleAgents(db, ticket.Category).SingleOrDefaultAsync(a => a.Id == agentId);
+            if (agent is null)
+            { error = "Wybrana osoba nie jest agentem tej kategorii. Wyszukaj ponownie."; return; }
+
+            if (ticket.AssignedAgentId != agent.Id)
+            {
+                ticket.AssignedAgentId = agent.Id;
+                ticket.UpdatedAt = DateTime.UtcNow;
+                await db.SaveChangesAsync();
+            }
+            if (disposed || requestedTicketId != TicketId) return;
+            await Assigned.InvokeAsync(new AssignmentResult(requestedTicketId, agent, ticket.UpdatedAt));
+            searchText = string.Empty; suggestions.Clear(); activeIndex = -1;
+            success = $"Przypisano: {agent.DisplayName}.";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Nie udało się przypisać agenta do zgłoszenia {TicketId}.", requestedTicketId);
+            error = "Nie udało się przypisać agenta. Spróbuj ponownie.";
+        }
+        finally { isAssigning = false; }
+    }
+
+    private void CancelSearch()
+    {
+        searchCancellation?.Cancel();
+        searchCancellation = null;
+        isSearching = false;
+    }
+    private void CloseSuggestions()
+    { CancelSearch(); isOpen = false; suggestions.Clear(); activeIndex = -1; }
+    public void Dispose() { disposed = true; CancelSearch(); }
+}

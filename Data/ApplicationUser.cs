@@ -13,6 +13,8 @@ namespace layZTickets.Data
         [MaxLength(100)]
         public string LastName { get; set; } = string.Empty;
 
+        public layZTickets.DataSets.TicketCategory? AgentCategory { get; set; }
+
         [NotMapped]
         public string DisplayName => string.IsNullOrWhiteSpace($"{FirstName} {LastName}".Trim())
             ? UserName ?? "Użytkownik"

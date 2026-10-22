@@ -112,7 +112,7 @@
             </div>
 
             <footer class="desk-table-footer">
-                <span>Pokazano @tickets.Count z maksymalnie 10 najnowszych zgłoszeń</span>
+                <span>Pokazano @tickets.Count zgłoszeń</span>
                 <div>
                     <button type="button" disabled>
                         <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
@@ -143,7 +143,6 @@
                 .Include(ticket => ticket.AssignedAgent)
                 .AsNoTracking()
                 .OrderByDescending(ticket => ticket.CreatedAt)
-                .Take(10)
                 .ToListAsync();
         }
         catch (Exception exception)

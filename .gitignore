@@ -4,6 +4,15 @@
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
 # User-specific files
+# Local assistant instructions and project planning notes.
+AGENTS.md
+AGENTS.override.md
+/README.md
+/ROADMAP.md
+/TODO.md
+/.agents/
+/.codex/
+
 # Local environment configuration (including .ENV); examples contain placeholders only.
 .[Ee][Nn][Vv]
 .[Ee][Nn][Vv].*

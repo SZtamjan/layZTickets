@@ -4,6 +4,7 @@
 @using Microsoft.EntityFrameworkCore
 @using layZTickets.Data
 @using layZTickets.DataSets
+@using layZTickets.Components.Shared
 @inject IDbContextFactory<AppDbContext> DbContextFactory
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ILogger<DisplayTicket> Logger
@@ -37,7 +38,7 @@
                     <span class="ticket-code">#@ticket.TicketNumber</span>
                     <span class="detail-chip">
                         <span class="material-symbols-outlined" aria-hidden="true">fiber_manual_record</span>
-                        <InputSelect id="ticket-priority" class="desk-input" @bind-Value:get="ticket.Status" @bind-Value:set="ChangeStatus" disabled="@isUpdating">
+                        <InputSelect id="ticket-status" class="desk-input" @bind-Value:get="ticket.Status" @bind-Value:set="ChangeStatus" disabled="@isUpdating">
                             <option value="@TicketStatus.New">Nowe</option>
                             <option value="@TicketStatus.InProgress">W trakcie</option>
                             <option value="@TicketStatus.Pending">Oczekujące</option>
@@ -96,14 +97,6 @@
                             <small>@ticket.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small>
                         </div>
                     </div>
-                    <div class="timeline-event internal">
-                        <span></span>
-                        <div>
-                            <strong>Notatka wewnętrzna</strong>
-                            <p>Agent może tutaj dopisać diagnozę, aktualizację statusu albo informację dla zespołu.</p>
-                            <small>Widoczne tylko dla zespołu IT</small>
-                        </div>
-                    </div>
 
                     @foreach (var comment in ticket.Comments.OrderBy(comment => comment.CreatedAt))
                     {
@@ -125,32 +118,36 @@
                         <div class="comment-error" role="alert">@commentErrorMessage</div>
                     }
 
-                    <textarea class="reply-textarea" @bind="commentContent" @bind:event="oninput" placeholder="Wpisz odpowiedź dla użytkownika lub notatkę..."></textarea>
-                    <footer>
-                        <button type="button">
-                            <span class="material-symbols-outlined" aria-hidden="true">attach_file</span>
-                            Załącz plik
-                        </button>
-                        <button type="button" @onclick="() => AddCommentAsync(true)" disabled="@isAddingComment">
-                            <span class="material-symbols-outlined" aria-hidden="true">lock</span>
-                            Dodaj notatkę
-                        </button>
-                        <button class="send" type="button" @onclick="() => AddCommentAsync(false)" disabled="@isAddingComment">Wyślij odpowiedź</button>
-                    </footer>
+                    @if (canReply)
+                    {
+                        <textarea class="reply-textarea" @bind="commentContent" @bind:event="oninput" placeholder="Wpisz odpowiedź dla użytkownika lub notatkę..."></textarea>
+                        <footer>
+                            <button type="button">
+                                <span class="material-symbols-outlined" aria-hidden="true">attach_file</span>
+                                Załącz plik
+                            </button>
+                            @if (canReadInternal)
+                            {
+                                <button type="button" @onclick="() => AddCommentAsync(true)" disabled="@isAddingComment">
+                                    <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+                                    Dodaj notatkę
+                                </button>
+                            }
+                            <button class="send" type="button" @onclick="() => AddCommentAsync(false)" disabled="@isAddingComment">Wyślij odpowiedź</button>
+                        </footer>
+                    }
+                    else
+                    {
+                        <p class="desk-muted">Nie masz uprawnień do odpowiadania na to zgłoszenie. Agent odpowiada tylko w swojej kategorii, a użytkownik — we własnych zgłoszeniach.</p>
+                    }
                 </section>
             </main>
 
             <aside class="ticket-side-panel">
-                <div class="side-actions">
-                    <button class="desk-primary-button" type="button">
-                        <span class="material-symbols-outlined" aria-hidden="true">person_add</span>
-                        Przypisz do mnie
-                    </button>
-                    <button class="desk-secondary-button" type="button">
-                        <span class="material-symbols-outlined" aria-hidden="true">sync</span>
-                        Zmień status
-                    </button>
-                </div>
+                @if (canAssign)
+                {
+                    <AgentAssignment @key="ticket.Id" TicketId="ticket.Id" Assigned="HandleAssigned" />
+                }
 
                 <section class="side-card">
                     <h2>Szczegóły</h2>
@@ -207,9 +204,22 @@
     private string? errorMessage;
     private string? commentErrorMessage;
     private string? updateErrorMessage;
+    private bool canReply;
+    private bool canAssign;
+    private bool canReadInternal;
+
+    private void HandleAssigned(AgentAssignment.AssignmentResult result)
+    {
+        if (ticket?.Id != result.TicketId) return;
+        ticket.AssignedAgentId = result.Agent.Id;
+        ticket.AssignedAgent = result.Agent;
+        ticket.UpdatedAt = result.UpdatedAt;
+    }
 
     protected override async Task OnParametersSetAsync()
     {
+        canReply = false; canAssign = false; canReadInternal = false;
+        ticket = null; errorMessage = null; isLoading = true;
         if (TicketId is null)
         {
             isLoading = false;
@@ -219,14 +229,24 @@
         try
         {
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var actor = await TicketAccess.GetActorAsync(dbContext, authentication.User);
+            if (actor is null)
+            {
+                errorMessage = "Zaloguj się ponownie, aby otworzyć zgłoszenie.";
+                return;
+            }
+            canReadInternal = actor.CanReadInternal;
+            canAssign = actor.CanAssign;
 
             ticket = await dbContext.Tickets
                 .Include(ticket => ticket.CreatedByUser)
                 .Include(ticket => ticket.AssignedAgent)
-                .Include(ticket => ticket.Comments)
+                .Include(ticket => ticket.Comments.Where(comment => canReadInternal || !comment.IsInternal))
                     .ThenInclude(comment => comment.AuthorUser)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
+            canReply = ticket is not null && actor.CanReply(ticket);
         }
         catch (Exception exception)
         {
@@ -392,17 +412,24 @@
 
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
 
-            var author = await dbContext.Users.AsNoTracking().FirstOrDefaultAsync(account => account.Id == userId);
-            if (author is null)
+            var actor = await TicketAccess.GetActorAsync(dbContext, user);
+            if (actor is null)
             {
                 commentErrorMessage = "Konto użytkownika już nie istnieje. Zaloguj się ponownie.";
                 return;
             }
+            var author = actor.Account;
 
             var ticketToUpdate = await dbContext.Tickets.FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
             if (ticketToUpdate is null)
             {
                 commentErrorMessage = "Zgłoszenie już nie istnieje.";
+                return;
+            }
+
+            if (!actor.CanReply(ticketToUpdate) || (isInternal && !actor.CanReadInternal))
+            {
+                commentErrorMessage = "Nie masz uprawnień do dodania tej odpowiedzi lub notatki w kategorii zgłoszenia.";
                 return;
             }
 

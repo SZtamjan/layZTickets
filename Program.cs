@@ -46,6 +46,13 @@ if (args.Contains("--bootstrap-admin=true"))
     return;
 }
 
+if (args.Contains("--bootstrap-agents=true"))
+{
+    await AgentAccountSetup.CreateAsync(app.Services, app.Configuration);
+    Console.WriteLine("Cztery konta agentów kategorii są gotowe. Istniejące hasła nie zostały zmienione.");
+    return;
+}
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
