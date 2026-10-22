@@ -46,6 +46,18 @@
         <ValidationSummary />
 
         <div>
+            <label for="new-user-first-name">Imię</label>
+            <InputText id="new-user-first-name" class="desk-input" autocomplete="off"
+                       @bind-Value="newUserData.FirstName" />
+        </div>
+
+        <div>
+            <label for="new-user-last-name">Nazwisko</label>
+            <InputText id="new-user-last-name" class="desk-input" autocomplete="off"
+                       @bind-Value="newUserData.LastName" />
+        </div>
+
+        <div>
             <label for="new-user-email">Adres e-mail / login</label>
             <InputText id="new-user-email" class="desk-input" type="email" autocomplete="off"
                        @bind-Value="newUserData.Email" />
@@ -99,6 +111,8 @@
             }
 
             newUserData.Email = (newUserData.Email ?? string.Empty).Trim();
+            newUserData.FirstName = (newUserData.FirstName ?? string.Empty).Trim();
+            newUserData.LastName = (newUserData.LastName ?? string.Empty).Trim();
 
             if (!editContext.Validate())
             {
@@ -109,7 +123,9 @@
             var user = new ApplicationUser
             {
                 UserName = newUserData.Email,
-                Email = newUserData.Email
+                Email = newUserData.Email,
+                FirstName = newUserData.FirstName,
+                LastName = newUserData.LastName
             };
 
             var result = await UserManager.CreateAsync(user, newUserData.Password);

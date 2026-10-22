@@ -45,10 +45,21 @@ public static class AdminAccountSetup
 
         if (user is null)
         {
+            var firstName = configuration["BootstrapAdmin:FirstName"]?.Trim() ?? "Admin";
+            var lastName = configuration["BootstrapAdmin:LastName"]?.Trim() ?? "Admin";
+
+            if (string.IsNullOrWhiteSpace(firstName) || firstName.Length > 100 ||
+                string.IsNullOrWhiteSpace(lastName) || lastName.Length > 100)
+            {
+                throw new InvalidOperationException("Imię i nazwisko administratora są wymagane i mogą mieć najwyżej 100 znaków każde.");
+            }
+
             user = new ApplicationUser
             {
                 UserName = email,
-                Email = email
+                Email = email,
+                FirstName = firstName,
+                LastName = lastName
             };
 
             var result = await userManager.CreateAsync(user, password);

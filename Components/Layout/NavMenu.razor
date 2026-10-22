@@ -36,10 +36,10 @@
             <details class="user-menu">
                 <summary class="sidebar-user">
                     <span class="sidebar-avatar">
-                        @GetInitials(authState.User.Identity?.Name)
+                        @GetInitials(GetDisplayName(authState.User))
                     </span>
                     <span>
-                        <strong>@authState.User.Identity?.Name</strong>
+                        <strong>@GetDisplayName(authState.User)</strong>
                         <span class="sidebar-role">
                             @(authState.User.IsInRole("Admin") ? "Administrator" : "Użytkownik")
                         </span>
@@ -59,6 +59,18 @@
 </div>
 
 @code{
+
+    private static string GetDisplayName(ClaimsPrincipal user)
+    {
+        var firstName = user.FindFirstValue(ClaimTypes.GivenName);
+        var lastName = user.FindFirstValue(ClaimTypes.Surname);
+        var fullName = $"{firstName} {lastName}".Trim();
+
+        // Starsze cookie nie ma jeszcze nowych danych; ponowne logowanie je uzupełni.
+        return string.IsNullOrWhiteSpace(fullName)
+            ? user.Identity?.Name ?? "Użytkownik"
+            : fullName;
+    }
 
     private string GetInitials(string? userName)
     {

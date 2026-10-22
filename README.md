@@ -21,21 +21,22 @@ W trybie Interactive Server przeglądarka wyświetla interfejs i przekazuje inte
 
 ## Obecny stan
 
-Stan analizy i weryfikacji: **22 października 2026 r.** Poniższa tabela opisuje implementację w kodzie. Podstawowe operacje na zgłoszeniach oraz logowanie, wylogowanie i ochronę stron sprawdził ręcznie użytkownik. Nowy formularz tworzenia kont sprawdzono przez HTTP z magazynem w pamięci; próby na SQL Server i w przeglądarce pozostają do wykonania. Szczegóły opisano w sekcji „Stan weryfikacji”.
+Stan analizy i weryfikacji: **22 października 2026 r.** Podstawowe operacje na zgłoszeniach, logowanie, wylogowanie, ochronę stron i formularz tworzenia kont użytkownik sprawdził ręcznie z SQL Server. Późniejsze rozszerzenie o imię i nazwisko potwierdzono kompilacją, 51 izolowanymi sprawdzeniami HTTP i zastosowaniem migracji z kontrolą zachowania wcześniejszych danych kont. Szczegóły opisano w sekcji „Stan weryfikacji”.
 
 | Obszar | Stan w kodzie |
 | --- | --- |
 | Tworzenie zgłoszenia | Formularz, sprawdzanie wymaganych pól, jeden zapis do bazy, priorytet i tekstowo wpisywani zgłaszający oraz agent; numer `IT-{Id}` wyliczany w C# bez zer wiodących |
 | Lista zgłoszeń | Odczyt 10 najnowszych rekordów i przejście do szczegółów |
 | Szczegóły i komentarze | Odczyt zgłoszenia z komentarzami; zapis odpowiedzi i notatek z flagą `IsInternal` |
-| Schemat bazy | Sześć migracji EF Core; użytkownik potwierdził zastosowanie `AddIdentitySchema`, brak oczekujących migracji i siedem tabel Identity. Strony nie tworzą ani nie aktualizują schematu; `TicketNumber` nie jest kolumną bazy |
+| Schemat bazy | Siedem migracji EF Core, w tym `AddUserNames` z kolumnami imienia i nazwiska w `AspNetUsers`. Strony nie tworzą ani nie aktualizują schematu; `TicketNumber` nie jest kolumną bazy |
 | Kategorie | Cztery wartości enuma `TicketCategory`; wybór w formularzu zapisuje się jako `int`, serwer sprawdza dozwoloną wartość przez `Enum.IsDefined`, szczegóły mapują ją na polską nazwę przez `GetCategoryName`; pozostają drobne poprawki tekstów |
 | Statusy i priorytety | `TicketStatus` i `TicketPriority` przechowywane jako `int`; wybór z listy w szczegółach zapisuje odpowiednie pole i `UpdatedAt`. Zamknięcie ustawia `ClosedAt`, a inny status ją czyści. Podstawowy zapis sprawdzony przez użytkownika; pełna weryfikacja dat i błędów pozostaje do wykonania |
 | Pozostałe przyciski w szczegółach | „Edytuj”, „Zmień status” i „Przypisz do mnie” nadal są nieaktywne. Status zmienia się listą; dwa pierwsze przyciski przeznaczono do usunięcia. Tekstowe przypisanie można podać przy tworzeniu |
 | Filtry, wyszukiwarka, paginacja | Elementy interfejsu bez zaimplementowanej logiki |
 | Załączniki | Makieta interfejsu, bez przesyłania i przechowywania plików |
 | Logowanie i role | Pierwszego administratora tworzy jawne polecenie `--bootstrap-admin=true`; użytkownik potwierdził `UserCount = 1`. Działają formularz `/login`, POST `/logout`, ochrona stron w `Components/Pages/Main` oraz nazwa i opis roli zalogowanej osoby w menu. Pełne uprawnienia do zgłoszeń pozostają do wdrożenia |
-| Panel administratora | `/admin` wymaga roli `Admin`. Wysuwany formularz tworzy zwykłe konto przez `UserManager`, sprawdza e-mail, potwierdzenie hasła i reguły Identity. Lista kont jest planowana; `/profile` pozostaje pustą stroną ustawień |
+| Panel administratora | `/admin` wymaga roli `Admin`. Wysuwany formularz tworzy zwykłe konto przez `UserManager`, wymaga imienia i nazwiska oraz sprawdza e-mail, potwierdzenie hasła i reguły Identity. Lista kont jest planowana; `/profile` pozostaje pustą stroną ustawień |
+| Nazwa osoby | `FirstName` i `LastName` przechowywane osobno, po maksymalnie 100 znaków. Menu odczytuje je z tożsamości logowania i wylicza inicjały. Powiązania zgłoszeń z kontami będą korzystać z `Id`, a nie z imienia i nazwiska |
 | Dashboard | Strona główna nadal zawiera treść szablonu |
 | Przykłady z szablonu | Strony Counter i Weather usunięto; serwis zapisu JSON pozostaje w projekcie |
 
@@ -58,8 +59,9 @@ Stan analizy i weryfikacji: **22 października 2026 r.** Poniższa tabela opisuj
 | `Components/Pages/Main/AdminPanel.razor` | Formularz tworzenia konta przez administratora w static SSR; POST na `/admin`, walidacja i zapis przez Identity |
 | `Components/Layout/`, `Components/App.razor`, `Components/Routes.razor` | Układ, dokument HTML i routing |
 | `Data/AppDbContext.cs` | Kontekst dziedziczący po `IdentityDbContext<ApplicationUser>`; model kont i ról Identity oraz zestawy zgłoszeń i komentarzy |
-| `Data/ApplicationUser.cs` | Typ konta dziedziczący po `IdentityUser`; nie reprezentuje sam w sobie sesji zalogowanej osoby |
-| `DataSets/UserData.cs` | Model danych formularza: e-mail, hasło i potwierdzenie hasła; nie jest encją EF ani nową tabelą |
+| `Data/ApplicationUser.cs` | Encja konta dziedzicząca po `IdentityUser`, rozszerzona o `FirstName` i `LastName` |
+| `Data/ApplicationUserClaimsPrincipalFactory.cs` | Dodaje imię i nazwisko do tożsamości tworzonej przy logowaniu, zachowując standardowy login, identyfikator i role Identity |
+| `DataSets/UserData.cs` | Model formularza: imię, nazwisko, e-mail, hasło i jego potwierdzenie; nie jest encją EF ani nową tabelą |
 | `DataSets/` | Modele `TicketData` i `TicketComment` oraz enumy `TicketCategory`, `TicketStatus` i `TicketPriority` |
 | `Migrations/` | Zmiany struktury bazy, metadane migracji i snapshot modelu, czyli jego zapis do porównania przy kolejnych zmianach |
 | `dotnet-tools.json` | Manifest lokalnego narzędzia `dotnet-ef` w wersji 8.0.27 |
@@ -148,6 +150,7 @@ dotnet build layZTickets.sln --no-restore
 | `20261021100725_AddTicketCategory` | Kolumna `Tickets.Category` typu `int`, wymagana, z wartością domyślną `0` (`Other`) dla istniejących zgłoszeń |
 | `20261021122842_ConvertTicketStatusAndPriorityToEnums` | Konwersja `Status` i `Priority` z tekstu na `int` zgodnie z enumami; dawne `Critical` odpowiada `Highest = 3` |
 | `20261021150554_AddIdentitySchema` | Siedem tabel Identity (`AspNetUsers`, `AspNetRoles`, `AspNetUserRoles`, `AspNetUserClaims`, `AspNetRoleClaims`, `AspNetUserLogins`, `AspNetUserTokens`) wraz z relacjami i indeksami; bez zmian tabel zgłoszeń. Zastosowanie potwierdzone przez użytkownika |
+| `20261022173719_AddUserNames` | `AspNetUsers.FirstName` i `LastName`, obie `nvarchar(100)` i wymagane. Uzgodnione dane demonstracyjne istniejących kont: Admin Admin dla administratora, Jan Kowalski dla zwykłego konta. Zastosowana przez agenta do bazy roboczej |
 
 Migracje opisują kolejne decyzje projektowe: pierwsza tworzyła kolumnę numeru, druga dodała indeks, a trzecia usuwa obie struktury. Po zastosowaniu wszystkich trzech baza nie przechowuje numeru zgłoszenia. `Down()` trzeciej migracji przywraca kolumnę z pustymi wartościami i indeks, ale nie odtwarza historycznej zawartości usuniętej kolumny; przed jej usunięciem wykonano i zweryfikowano backup kopii bazy.
 
@@ -156,6 +159,8 @@ Czwarta migracja dodaje kategorię: `Other = 0` (Inne), `Hardware = 1` (Sprzęt)
 Piąta migracja mapuje tekstowe statusy na `New = 0`, `InProgress = 1`, `Pending = 2`, `Closed = 3`, a priorytety na `Low = 0`, `Normal = 1`, `High = 2`, `Highest = 3`. Najpierw zamienia nazwy na tekstowe liczby, a następnie zmienia typ obu kolumn na `int` w transakcji migracji. Dawne `Critical` oraz tekstowe `Highest` oznaczają wartość `3`; nierozpoznana wartość przerywa migrację. `Down()` przywraca tekstowe nazwy, używając dawnego `Critical` dla najwyższego priorytetu. Formularz tworzenia korzysta z nazw obecnego enuma, w tym `Highest` zamiast `Critical`.
 
 Szósta migracja tworzy strukturę Identity. Samo wygenerowanie plików i skryptu SQL nie wykonuje zmian w bazie. Użytkownik zastosował ją i potwierdził sześć migracji bez `Pending`, siedem tabel `AspNet...` i `UserCount = 0`. Migracja nie tworzy administratora, nie uruchamia logowania ani nie wiąże dotychczasowych tekstowych autorów zgłoszeń z kontami. `Down()` usuwa siedem tabel Identity wraz z ich ewentualną zawartością, bez usuwania tabel zgłoszeń. Przed stosowaniem migracji w innym środowisku trzeba sprawdzić docelowe połączenie i stan bazy.
+
+Siódma migracja dodaje imię i nazwisko, a istniejące konta uzupełnia uzgodnionymi danymi demonstracyjnymi na podstawie roli `Admin`. Nie zmienia identyfikatorów, loginów, haseł ani przypisań do ról. `Down()` usuwa obie nowe kolumny wraz z ich zawartością. Nowe konta dostają dane z formularza, nie wartości demonstracyjne. W bazie roboczej potwierdzono 7 migracji, 2 konta, 10 zgłoszeń i 13 komentarzy oraz zgodność skrótu wszystkich dotychczasowych pól użytkowników sprzed i po migracji.
 
 Dla nowej bazy, po ustawieniu przykładowego połączenia powyżej:
 
@@ -215,9 +220,13 @@ dotnet run --project layZTickets.csproj --launch-profile https -- --bootstrap-ad
 
 Polecenie tworzy brakującą rolę `Admin`, konto i przypisanie do roli, po czym kończy proces. Nie zmienia hasła już istniejącego konta. Zwykłe uruchomienie aplikacji nie odtwarza administratora. Hasło musi spełniać aktualne reguły Identity; obecne ustawienia wymagają minimum 6 znaków, małej i wielkiej litery, cyfry oraz znaku specjalnego. Po konfiguracji można usunąć `BootstrapAdmin:Password` z User Secrets.
 
-Po zalogowaniu administrator otwiera **Panel administratora → Utwórz użytkownika**. Adres e-mail jest loginem, administrator ustawia hasło i potwierdza je drugim polem. W tej wersji nie wysyłamy wiadomości, zaproszeń ani potwierdzeń e-mail. Nowe konto nie otrzymuje roli `Admin`; nie następuje też przełączenie sesji administratora na utworzone konto.
+Po zalogowaniu administrator otwiera **Panel administratora → Utwórz użytkownika**. Podaje imię i nazwisko (każde wymagane, do 100 znaków), e-mail będący loginem oraz hasło i jego potwierdzenie. Dozwolone są polskie znaki, dwa imiona i nazwiska z łącznikiem. W tej wersji nie wysyłamy wiadomości, zaproszeń ani potwierdzeń e-mail. Nowe konto nie otrzymuje roli `Admin`; nie następuje też przełączenie sesji administratora na utworzone konto.
 
-`UserData` zbiera dane POST, a `UserManager.CreateAsync` weryfikuje reguły Identity, tworzy hash hasła i zapisuje `ApplicationUser` przez istniejący magazyn EF do `AspNetUsers`. Nie potrzeba nowej migracji. Pola hasła są czyszczone po każdej obsłużonej próbie. Po sukcesie następuje przekierowanie na GET, aby odświeżenie nie ponawiało zapisu. Po błędzie krótki skrypt przeglądarkowy ponownie otwiera panel z komunikatem; e-mail pozostaje w formularzu, hasła trzeba wpisać ponownie.
+`UserData` zbiera dane POST, a `UserManager.CreateAsync` weryfikuje reguły Identity, tworzy hash hasła i zapisuje `ApplicationUser`, w tym imię i nazwisko, przez istniejący magazyn EF do `AspNetUsers`. Struktura bazy wymaga migracji `AddUserNames`. Pola hasła są czyszczone po każdej obsłużonej próbie. Po sukcesie następuje przekierowanie na GET, aby odświeżenie nie ponawiało zapisu. Po błędzie krótki skrypt przeglądarkowy ponownie otwiera panel z komunikatem; pozostałe dane pozostają w formularzu, hasła trzeba wpisać ponownie.
+
+Przy tworzeniu pierwszego administratora domyślne imię i nazwisko to Admin Admin. Opcjonalne klucze `BootstrapAdmin:FirstName` i `BootstrapAdmin:LastName` pozwalają podać inne dane nowego administratora. Ponowne wykonanie bootstrapu nie nadpisuje danych już istniejącego konta.
+
+`ApplicationUserClaimsPrincipalFactory` dodaje `ClaimTypes.GivenName` i `ClaimTypes.Surname` do tożsamości zapisywanej w cookie. Menu wyświetla je zamiast e-maila, a login nadal pozostaje adresem e-mail. **Po aktualizacji wyloguj się i zaloguj ponownie**, aby odtworzyć cookie z nowymi danymi. Starsze cookie zachowuje dotychczasowy widok z adresem e-mail. Zmiana danych profilu i automatyczne odświeżanie tych informacji będą osobnym zadaniem.
 
 ### Stan weryfikacji
 
@@ -249,8 +258,10 @@ Po zalogowaniu administrator otwiera **Panel administratora → Utwórz użytkow
 | Konfiguracja usług Identity | Agent sprawdził w `Program.cs` rejestrację kont, ról, magazynów EF, autoryzacji i stanu uwierzytelnienia dla Blazora oraz kolejność `UseAuthentication`, `UseAuthorization` i `UseAntiforgery`. Użytkownik potwierdził poprawne uruchomienie aplikacji. Nie wykonywano jeszcze prób tworzenia kont, logowania, wylogowania ani egzekwowania uprawnień do zgłoszeń |
 | Konta i sesja — 22.10.2026 | Użytkownik potwierdził utworzenie administratora (`UserCount = 1`), działanie logowania, wylogowania oraz brak dostępu do chronionych stron po wylogowaniu także przez bezpośredni adres. Menu korzysta z rzeczywistej nazwy i roli konta |
 | Tworzenie kont w panelu administratora — 22.10.2026 | Build: 0 błędów i ostrzeżeń. Izolowane próby HTTP skompilowanych stron z rzeczywistym Identity i testowym magazynem w pamięci: 40 sprawdzeń, w tym wymagane pola, e-mail, różne hasła, polityka hasła, duplikat bez rozróżniania wielkości liter, hash, logowanie nowego konta, zachowanie sesji administratora, brak nadania roli z dodatkowych pól POST, brak hasła w HTML, brak ponownego zapisu po odświeżeniu, obsługa błędu magazynu, odrzucenie POST bez tokena oraz odczytu i zapisu osoby niezalogowanej i zwykłego użytkownika. Nie korzystano z SQL Server ani istniejących sekretów |
-| Ręczna próba nowego formularza z SQL Server | Do wykonania: utworzenie konta, logowanie na nie, duplikat i błędne dane, odmowa dostępu do `/admin` dla zwykłego konta, otwieranie panelu po błędzie w przeglądarce. Lista kont i pełna macierz uprawnień nie są wdrożone. Odmowa dostępu zalogowanej osobie kieruje obecnie na domyślny adres Identity; własny ekran braku uprawnień pozostaje do przygotowania |
-| Pusta baza z aktualnymi sześcioma migracjami | Do sprawdzenia; dotychczasowy test pustej bazy obejmował dwie pierwsze migracje |
+| Ręczna próba formularza z SQL Server | Użytkownik potwierdził sprawdzenie scenariuszy i poprawne działanie formularza sprzed rozszerzenia o imię i nazwisko. Punkt TODO oznaczono jako wykonany. Własny ekran odmowy dostępu nadal pozostaje do przygotowania; obecny zakaz dostępu kieruje na domyślny adres Identity |
+| Imię i nazwisko — baza | Agent zastosował `AddUserNames` do `layZTicketsDb` i potwierdził typy oraz wymaganie nowych kolumn, dane Admin Admin i Jan Kowalski, 2 konta, 10 zgłoszeń i 13 komentarzy. Skrót wszystkich wcześniejszych pól użytkowników jest zgodny. Model zgodny ze snapshotem, build bez błędów i ostrzeżeń |
+| Imię i nazwisko — zachowanie | 51 izolowanych sprawdzeń HTTP z magazynem w pamięci: poprzednie reguły tworzenia kont oraz wymagane nazwy, limit 100 znaków, przycinanie spacji, dwa imiona, polskie znaki i nazwiska z łącznikiem, poprawna nazwa i inicjały po logowaniu oraz różne identyfikatory kont o identycznych nazwach. Agent nie wykonywał interaktywnego logowania do lokalnej aplikacji po tej zmianie |
+| Pusta baza z aktualnymi siedmioma migracjami | Do sprawdzenia; dotychczasowy test pustej bazy obejmował dwie pierwsze migracje |
 | Testy automatyczne | Brak projektu testowego |
 
 Przed zmianami użytkownik potwierdził tworzenie zgłoszeń, ich obecność na liście, szczegóły, odpowiedzi, notatki i trwałość po odświeżeniu. Po usunięciu kodu poprawiającego schemat powtórzył główne operacje na kopii po migracjach, potwierdzając poprawny odczyt, zapis i aktualizację daty. Próba pustej bazy potwierdza przygotowanie struktury, nie obejmowała jeszcze interfejsu tej bazy.

@@ -1,6 +1,6 @@
 # TODO — layZTickets
 
-Krótka lista do odhaczania zamiast osobnego narzędzia do zadań. Stan na 22.10.2026: pierwszy administrator, logowanie, wylogowanie, ochrona stron i tożsamość w menu są zaimplementowane. Formularz tworzenia kont przez administratora jest gotowy w kodzie i przeszedł izolowane próby HTTP; pozostaje sprawdzenie z SQL Server i w przeglądarce.
+Krótka lista do odhaczania zamiast osobnego narzędzia do zadań. Stan na 22.10.2026: użytkownik potwierdził próby tworzenia kont z SQL Server i w przeglądarce. Dodano wymagane imię i nazwisko nowych kont, zastosowano siódmą migrację i uzupełniono dotychczasowe konta. Menu wyświetla pełną nazwę po ponownym zalogowaniu. Rozszerzenie przeszło kompilację, weryfikację bazy i 51 izolowanych sprawdzeń HTTP.
 
 Pracujemy nad jednym punktem naraz. Zaznacz `[x]` dopiero po sprawdzeniu opisanego efektu. Szczegółowe kryteria etapów i ich statusy są w [ROADMAP.md](ROADMAP.md).
 
@@ -8,17 +8,15 @@ Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek
 
 ## Teraz
 
-- [ ] **Tworzenie kolejnych kont przez administratora — próba z SQL Server** — etap 4a
-
-  Formularz w wysuwanym panelu `/admin` jest zaimplementowany: `UserData`, walidacja, `UserManager.CreateAsync`, polskie komunikaty, ochrona roli `Admin`, czyszczenie haseł i przekierowanie po sukcesie. Nowe konto jest zwykłym kontem, a sesja administratora pozostaje bez zmian. Ustalono e-mail jako login, ręczne ustawienie hasła przez administratora i brak wysyłania zaproszeń oraz potwierdzania e-maila w tej wersji. Nie ma publicznej rejestracji.
-
-  Build: 0 błędów i ostrzeżeń. W izolowanych próbach HTTP skompilowanych stron z Identity i magazynem w pamięci przeszło 40 sprawdzeń, w tym tworzenie i logowanie, duplikat, błędne dane, awaria magazynu, brak wycieku hasła w HTML, token formularza i zakaz odczytu/zapisu dla osoby niezalogowanej oraz zwykłego użytkownika. Teraz sprawdzić te scenariusze w lokalnej aplikacji z SQL Server i ponowne otwieranie panelu po błędzie w przeglądarce. Dodać własny ekran odmowy dostępu zamiast domyślnego adresu Identity. Etap 4a pozostaje w toku.
-
-## Następne sesje
-
 - [ ] **Lista kont w panelu administratora** — etap 4a
 
-  Wyświetlić utworzone konta w tym samym panelu, zgodnie z ustalonym układem. Nie wyświetlać haseł ani ich hashy. Rozbudowa pustego „Mojego profilu”, w tym zmiana loginu i hasła, pozostaje na później.
+  Wyświetlić imię, nazwisko i login utworzonych kont w tym samym panelu, zgodnie z ustalonym układem. Nie wyświetlać haseł ani ich hashy. Rozbudowa pustego „Mojego profilu”, w tym zmiana loginu i hasła, pozostaje na później.
+
+- [ ] **Własny ekran odmowy dostępu** — etap 4a
+
+  Odmowa wejścia zwykłego użytkownika na `/admin` działa, ale prowadzi na domyślny adres Identity. Przygotować własną stronę i ustawić `AccessDeniedPath`. Cały etap 4 pozostaje w toku.
+
+## Następne sesje
 
 - [ ] **Autor zgłoszenia i komentarza z zalogowanego konta** — etap 4b
 
@@ -42,9 +40,17 @@ Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek
 
 - [ ] **Pusta baza z pełnego zestawu migracji** — etap 2
 
-  Sprawdzić utworzenie osobnej pustej bazy z aktualnych sześciu migracji, w tym kolumny `Category`, liczbowych kolumn `Status` i `Priority` oraz tabel Identity. Wcześniejsza próba obejmowała tylko dwie pierwsze migracje.
+  Sprawdzić utworzenie osobnej pustej bazy z aktualnych siedmiu migracji, w tym kategorii, liczbowych statusów i priorytetów oraz tabel Identity z imieniem i nazwiskiem. Wcześniejsza próba obejmowała tylko dwie pierwsze migracje.
 
 ## Wykonane
+
+- [x] **Tworzenie kolejnych kont przez administratora — próba z SQL Server** — 22.10.2026 · etap 4a
+
+  Użytkownik potwierdził sprawdzenie scenariuszy w lokalnej aplikacji z SQL Server i poprawne działanie. Potwierdzenie dotyczy formularza sprzed rozszerzenia o imię i nazwisko. Wcześniejsze izolowane próby HTTP obejmowały 40 sprawdzeń walidacji, zapisu, logowania, duplikatu i granic dostępu. Dane logowania ustawia administrator, bez wysyłania zaproszeń i potwierdzania e-maila. Ten punkt jest wykonany; lista kont i ekran odmowy dostępu pozostają osobnymi zadaniami.
+
+- [x] **Imię i nazwisko konta — formularz, baza i menu** — 22.10.2026 · etap 4a
+
+  Dodano `FirstName` i `LastName` do `ApplicationUser` oraz `UserData`, wymagane pola formularza i limit po 100 znaków. `AddUserNames` zastosowano do `layZTicketsDb`: 7 migracji, nadal 2 konta, 10 zgłoszeń i 13 komentarzy. Uzgodnione dane dotychczasowych kont to Admin Admin i Jan Kowalski. Skrót wszystkich wcześniejszych pól użytkowników pozostał zgodny. Własna fabryka tożsamości dodaje imię i nazwisko do cookie przy logowaniu; menu pokazuje pełną nazwę i inicjały, a identyfikator i login pozostają bez zmian. Bootstrap nowego administratora domyślnie nadaje Admin Admin, z opcją konfiguracji. Build bez błędów i ostrzeżeń, model zgodny ze snapshotem, 51 izolowanych sprawdzeń HTTP, w tym wymagane i długie nazwy, dwa imiona, polskie znaki i różne konta o identycznej nazwie. Nowe pola w lokalnym UI można sprawdzić po ponownym zalogowaniu; agent nie wykonywał takiej interaktywnej próby.
 
 - [x] **Pierwszy administrator, logowanie, wylogowanie i ochrona stron** — 22.10.2026 · etap 4a
 

@@ -20,7 +20,8 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole>()
-    .AddEntityFrameworkStores<AppDbContext>();
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>();
 
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
