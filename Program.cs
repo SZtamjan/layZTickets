@@ -24,7 +24,24 @@ builder.Services
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/login";
+});
+
 var app = builder.Build();
+
+if (args.Contains("--bootstrap-admin=true"))
+{
+    await AdminAccountSetup.CreateAsync(
+        app.Services,
+        app.Configuration);
+
+    Console.WriteLine(
+        "Konto administratora i przypisanie do roli Admin są gotowe.");
+
+    return;
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

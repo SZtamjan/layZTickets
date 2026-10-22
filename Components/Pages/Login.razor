@@ -1,0 +1,78 @@
+﻿@page "/login"
+@layout layZTickets.Components.Layout.LoginLayout
+@using Microsoft.AspNetCore.Identity
+@using layZTickets.Data
+@inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager Navigation
+@inject ILogger<Login> Logger
+
+<PageTitle>Logowanie</PageTitle>
+
+<h1>Zaloguj się do layZTickets</h1>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+	<div class="alert alert-danger" role="alert">
+		@errorMessage
+	</div>
+}
+
+<EditForm Model="Input" OnSubmit="LoginAttempt"	FormName="login" method="post">
+	<InputText @bind-Value="Input.Email" placeholder="Wpisz login"></InputText>
+	<InputText @bind-Value="Input.Password" placeholder="Wpisz hasło" type="password"></InputText>
+	<button type="submit">Zaloguj</button>
+</EditForm>
+
+@code {
+	private string? errorMessage;
+
+	public class LoginInput
+	{
+		public string Email { get; set; } = "";
+		public string Password { get; set; } = "";
+	}
+
+	[SupplyParameterFromForm]
+	private LoginInput Input { get; set; } = new();
+
+	private async Task LoginAttempt()
+	{
+		errorMessage = null;
+
+		if (string.IsNullOrWhiteSpace(Input.Email) || string.IsNullOrWhiteSpace(Input.Password))
+		{
+			errorMessage = $"Upewnij się, że podałeś wszystkie dane";
+			return;
+		}
+
+		try
+		{
+			var result = await SignInManager.PasswordSignInAsync(
+				Input.Email.Trim(),
+				Input.Password,
+				isPersistent: false,
+				lockoutOnFailure: true);
+
+			if (result.Succeeded)
+			{
+				Navigation.NavigateTo("/", forceLoad: true);
+			}
+			else if (result.IsLockedOut)
+			{
+				errorMessage = $"Konto tymczasowo zablokowane";
+			}
+			else
+			{
+				errorMessage = "Nie udało się zalogować. Sprawdź dane.";
+			}
+		}
+		catch (Exception e) when (e is not NavigationException)
+		{
+			Logger.LogError(e, "Błąd podczas logowania.");
+			errorMessage = "Wystąpił problem z logowaniem. Spróbuj ponownie później.";
+		}
+		finally
+		{
+		}
+	}
+}
