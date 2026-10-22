@@ -23,21 +23,51 @@
         </NavLink>
     </nav>
 
-    <details class="user-menu">
-        <summary class="sidebar-user">
-            <span class="sidebar-avatar">MK</span>
-            <span>
-                <strong>Marek Nowak</strong>
-                <span class="sidebar-role">Starszy Agent IT</span>
-            </span>
-        </summary>
+    <AuthorizeView Context="authState">
+        <Authorized>
+            <details class="user-menu">
+                <summary class="sidebar-user">
+                    <span class="sidebar-avatar">
+                        @GetInitials(authState.User.Identity?.Name)
+                    </span>
+                    <span>
+                        <strong>@authState.User.Identity?.Name</strong>
 
-        <div class="user-menu-panel">
-            <a href="/profile">Mój profil</a>
-            <form action="/logout" method="post">
-                <AntiforgeryToken />
-                <button type="submit">Wyloguj</button>
-            </form>
-        </div>
-    </details>
+                        <span class="sidebar-role">
+                            @(authState.User.IsInRole("Admin") ? "Administrator" : "Użytkownik")
+                        </span>
+                    </span>
+                </summary>
+
+                <div class="user-menu-panel">
+                    <a href="/profile">Mój profil</a>
+                    <form action="/logout" method="post">
+                        <AntiforgeryToken />
+                        <button type="submit">Wyloguj</button>
+                    </form>
+                </div>
+            </details>
+        </Authorized>
+    </AuthorizeView>
 </div>
+
+@code{
+
+    private string GetInitials(string? userName)
+    {
+        // UU stands for Unknown User
+
+        if (string.IsNullOrWhiteSpace(userName))
+            return "UU";
+
+        string[] words = userName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        if (words.Length == 1)
+            return words[0][0].ToString().ToUpperInvariant();
+
+        char first = words[0][0];
+        char last = words[^1][0];
+        
+        return $"{first}{last}".ToUpperInvariant();
+    }
+}
