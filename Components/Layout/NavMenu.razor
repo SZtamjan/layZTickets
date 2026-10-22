@@ -23,11 +23,21 @@
         </NavLink>
     </nav>
 
-    <div class="sidebar-user">
-        <div class="sidebar-avatar">MK</div>
-        <div>
-            <strong>Marek Nowak</strong>
-            <span>Starszy Agent IT</span>
+    <details class="user-menu">
+        <summary class="sidebar-user">
+            <span class="sidebar-avatar">MK</span>
+            <span>
+                <strong>Marek Nowak</strong>
+                <span class="sidebar-role">Starszy Agent IT</span>
+            </span>
+        </summary>
+
+        <div class="user-menu-panel">
+            <a href="/profile">Mój profil</a>
+            <form action="/logout" method="post">
+                <AntiforgeryToken />
+                <button type="submit">Wyloguj</button>
+            </form>
         </div>
-    </div>
+    </details>
 </div>

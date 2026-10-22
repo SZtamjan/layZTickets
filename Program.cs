@@ -2,6 +2,7 @@ using layZTickets.Components;
 using layZTickets.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Antiforgery;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -62,5 +63,21 @@ app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+app.MapPost("/logout", async (
+    HttpContext context,
+    IAntiforgery antiforgery,
+    SignInManager<ApplicationUser> signInManager) =>
+{
+    if (!await antiforgery.IsRequestValidAsync(context))
+    {
+        return Results.BadRequest("Nieprawidłowe żądanie wylogowania.");
+    }
+
+    await signInManager.SignOutAsync();
+
+    return Results.LocalRedirect("/login");
+})
+.RequireAuthorization();
 
 app.Run();
