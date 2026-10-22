@@ -10,7 +10,7 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 - Status aktualizujemy po faktycznej pracy i sprawdzeniach. Ukończenie wymaga spełnienia kryteriów funkcjonalnych i omówienia użytych mechanizmów z użytkownikiem, bez obowiązkowego egzaminu.
 - Szczegółowe wymagania funkcji ustalamy przed ich wdrażaniem. Ta roadmapa nie rozstrzyga jeszcze macierzy uprawnień, reguł przejść statusów ani polityki załączników.
 - Zakres obsługi zgłoszeń: treść wysłanego zgłoszenia, komentarzy i notatek pozostaje bez edycji. Status i priorytet są zmieniane osobnymi listami rozwijanymi w szczegółach, z zapisem po wyborze, bez osobnego przycisku zapisu. Po wdrożeniu kont „Przypisz do mnie” od razu zapisze przypisanie do zalogowanej osoby; przypisywanie jest nadal planowaną funkcją.
-- Stan na 22.10.2026. Etap 1 jest ukończony w zakresie istniejącego środowiska. W etapie 2 pozostała próba pustej bazy z siedmiu migracji, a w etapie 3 reguły, sprawdzenia i porządki opisane poniżej. Etap 4a jest ukończony: konta, sesja, imię i nazwisko, lista kont i ekran odmowy są zaimplementowane i sprawdzone w opisanym poniżej zakresie. Następny zakres to 4b — powiązanie autorów z kontami; cały etap 4 pozostaje w toku. Odtworzenie całego środowiska na czystym komputerze pozostaje do weryfikacji.
+- Stan na 22.10.2026. Etap 1 jest ukończony w zakresie istniejącego środowiska. W etapie 2 pozostała próba pustej bazy z ośmiu migracji, a w etapie 3 reguły, sprawdzenia i porządki opisane poniżej. Etapy 4a (konta i sesja) oraz 4b (autorzy powiązani z kontami) są ukończone w opisanym poniżej zakresie. Następny zakres to 4c — role, dostęp do rekordów i przypisywanie; cały etap 4 pozostaje w toku. Odtworzenie całego środowiska na czystym komputerze pozostaje do weryfikacji.
 
 ## 1. Poznanie i uruchomienie istniejącej aplikacji
 
@@ -49,7 +49,7 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 **Dalsza weryfikacja:** po trzeciej migracji użytkownik potwierdził tworzenie i komentowanie wynikiem 8 zgłoszeń i 12 komentarzy. 21.10.2026 wygenerował `AddTicketCategory`; agent sprawdził, że dodaje wyłącznie kolumnę `Category` typu `int` z wartością domyślną `0`, bez odtwarzania tabel po zmianie klasy `Ticket` na `TicketData`. Kompilacja przeszła bez błędów i ostrzeżeń, a użytkownik potwierdził poprawne działanie kategorii po migracji.
 
-**Pozostało:** utworzenie pustej bazy z aktualnymi siedmioma migracjami. Logika operacji nadal znajduje się w komponentach — zakres ewentualnego wydzielenia wymaga osobnego małego zadania. Próby dotyczą lokalnego środowiska.
+**Pozostało:** utworzenie pustej bazy z aktualnymi ośmioma migracjami. Logika operacji nadal znajduje się w komponentach — zakres ewentualnego wydzielenia wymaga osobnego małego zadania. Próby dotyczą lokalnego środowiska.
 
 **Kryteria ukończenia:**
 
@@ -89,7 +89,7 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 ## 4. Konta, role i granice dostępu
 
-**Status:** w toku — część 4a jest ukończona: konta, logowanie i wylogowanie, tożsamość, ochrona stron, tworzenie i lista kont oraz ekran odmowy. Użytkownik potwierdził próby formularza z SQL Server; późniejsze rozszerzenia sprawdzono kompilacją, odczytem SQL i izolowanymi próbami HTTP. Pozostają części 4b i 4c z autorami powiązanymi z kontami oraz uprawnieniami do zgłoszeń i operacji.
+**Status:** w toku — części 4a i 4b są ukończone. Działają konta i sesja oraz automatyczne powiązanie autora zgłoszenia i komentarza z zalogowanym kontem. Zakres weryfikacji opisano poniżej. Pozostaje część 4c z rolami, uprawnieniami do rekordów i operacji oraz przypisywaniem.
 
 **Efekt:** logowanie i wylogowanie oraz egzekwowane na serwerze uprawnienia ról użytkownika, agenta SD i administratora.
 
@@ -117,7 +117,7 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 **Ekran odmowy — wykonano:** `AccessDeniedPath` wskazuje własną stronę `/access-denied`. Strona wymaga zalogowania, ale nie roli `Admin`; zwraca 403, pokazuje komunikat i pozwala wrócić do strony głównej. Osoba niezalogowana nadal trafia na `/login`. Ochronę panelu nadal zapewnia `[Authorize(Roles = "Admin")]`. Build bez błędów i ostrzeżeń oraz 66 izolowanych sprawdzeń HTTP potwierdziły wcześniejsze funkcje i przekierowanie zwykłego użytkownika po zabronionym GET i POST, treść 403 bez danych panelu, powrót do strony głównej i brak zewnętrznego przekierowania z `ReturnUrl`. Nie zmieniano bazy i nie wykonywano interaktywnej próby nowego ekranu w przeglądarce.
 
-**Najbliższy krok:** etap 4b — ustalić los dotychczasowych tekstowych autorów i przypisań, a następnie powiązać autorów nowych zgłoszeń i komentarzy z kontami. Pełna macierz ról i dostęp do rekordów należą do części 4c.
+**Najbliższy krok:** etap 4c — uzgodnić role i uprawnienia do zgłoszeń, komentarzy, notatek, zmian statusu i priorytetu oraz przypisywania. Samo powiązanie autora z kontem nie ogranicza jeszcze widoczności cudzych zgłoszeń.
 
 **Praca:** konta tworzy wyłącznie administrator; nie udostępniamy publicznej rejestracji ani publicznej operacji tworzenia kont. Przed implementacją ustalić szczegóły zakładania kont, a następnie macierz uprawnień do zgłoszeń. Powiązać autorów i przypisania z kontami, ustalając los dotychczasowych tekstowych danych. Zaimplementować przydzielanie zgłoszeń zgodnie z macierzą. Kliknięcie „Przypisz do mnie” od razu uruchamia zapis przypisania w bazie; serwer ustala identyfikator zalogowanej osoby i sprawdza jej uprawnienia. Ustalić zasady przejęcia już przypisanego zgłoszenia i aktualizacji daty. Chronić notatki wewnętrzne także przy pobieraniu danych. Objąć uprawnieniami również zmianę statusu i priorytetu.
 
@@ -129,7 +129,11 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 4. Zastąpić przykładową tożsamość w układzie danymi zalogowanej osoby. Sprawdzić logowanie administratora poprawnym i błędnym hasłem, odświeżenie strony oraz wylogowanie. Pierwszy efekt: administrator może wejść na własne konto i zobaczyć, kto jest zalogowany.
 5. Tworzenie kont jest wykonane i potwierdzone przez użytkownika z SQL Server. Rozszerzenie o imię i nazwisko, lista kont i własny ekran odmowy dostępu są zaimplementowane i sprawdzone w zakresie opisanym powyżej. Ten punkt nie oznacza jeszcze wdrożenia uprawnień do zgłoszeń.
 
-**4b. Autorzy powiązani z kontami:** ustalić sposób potraktowania dotychczasowych tekstowych autorów i przypisań, następnie zapisywać identyfikator zalogowanej osoby jako autora nowego zgłoszenia i komentarza. Użytkownik nie podaje autora dowolnym tekstem. Zasady dostępu dla niezalogowanej osoby sprawdzać na serwerze.
+**4b. Autorzy powiązani z kontami — ukończony 22.10.2026:** `CreateTicketAsync` i `AddCommentAsync` odczytują zalogowaną tożsamość przez `AuthenticationStateProvider`, pobierają `ClaimTypes.NameIdentifier` i sprawdzają istnienie konta. Nowe zgłoszenie i komentarz wskazują to konto. Usunięto pola zgłaszającego, agenta i autora komentarza; nowe zgłoszenie pozostaje nieprzypisane. Zapis zgłoszenia tworzy nową encję wyłącznie z dozwolonych pól szkicu; autora, początkowy status i daty ustala serwer. Kategorie i priorytety są walidowane. Komentarz i data aktualizacji zgłoszenia zapisują się razem; brak rekordu ma lokalny komunikat. Błędy tych dwóch zapisów trafiają do logów.
+
+Relacje `CreatedByUser`, `AssignedAgent` i `AuthorUser` łączą rekordy z `ApplicationUser`. `Include`/`ThenInclude` dołączają konta do odczytu, a niemapowane `DisplayName` wyświetla aktualne imię i nazwisko, z loginem jako wartością zastępczą. Klucze obce z `NoAction` blokują usunięcie konta mającego powiązane rekordy. Migracja `20261022182842_LinkTicketAuthorsToUsers` usuwa stare rekordy bez istniejącego autora i czyści nieprawidłowe przypisania przed dodaniem relacji. Zgodnie ze zgodą użytkownika usunięto 10 zgłoszeń i 13 komentarzy, zachowując oba konta i zgodny skrót wszystkich ich pól. `Down()` nie odtwarza usuniętych danych. Baza robocza ma 8 migracji.
+
+Weryfikacja: build bez błędów i ostrzeżeń, model zgodny ze snapshotem, 34 sprawdzenia metod komponentów, rzeczywistego SQL i HTML serwera. Obejmują dwóch autorów, odrzucenie anonimowej/niepełnej tożsamości i usuniętego konta, podszyte dane w szkicu, walidację, autorów odpowiedzi i notatek, datę aktualizacji, brak zgłoszenia, przekierowania bez logowania, nazwy w widokach i brak edytowalnych pól autora/agenta. Uwierzytelnienie symulowano na identyfikatorach istniejących kont; zapisy SQL wycofano transakcją i potwierdzono brak pozostałych rekordów prób. Nie wykonano interaktywnej próby w przeglądarce. Ochrona rekordów i notatek pozostaje w 4c.
 
 **4c. Role, dostęp i przypisywanie:** uzgodnić macierz ról użytkownika, agenta SD i administratora oraz sposób nadawania ról. Nowe konto nie może samodzielnie nadać sobie roli uprzywilejowanej. Egzekwować dostęp do rekordów i notatek wewnętrznych podczas odczytu oraz uprawnienia podczas zapisu. Dodać „Przypisz do mnie” i próby dozwolonych oraz zabronionych operacji, w tym wejścia bezpośrednio na adres zgłoszenia.
 

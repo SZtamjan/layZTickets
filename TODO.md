@@ -1,6 +1,6 @@
 # TODO — layZTickets
 
-Krótka lista do odhaczania zamiast osobnego narzędzia do zadań. Stan na 22.10.2026: etap 4a jest ukończony — konta, sesja, imię i nazwisko, lista kont oraz własny ekran odmowy dostępu są zaimplementowane i sprawdzone w opisanym poniżej zakresie. Pełne uprawnienia do zgłoszeń należą do dalszych części roadmapy; cały etap 4 pozostaje w toku.
+Krótka lista do odhaczania zamiast osobnego narzędzia do zadań. Stan na 22.10.2026: etapy 4a (konta i sesja) oraz 4b (autorzy powiązani z kontami) są ukończone w opisanym poniżej zakresie. Uprawnienia do zgłoszeń i przypisywanie należą do 4c; cały etap 4 pozostaje w toku.
 
 Pracujemy nad jednym punktem naraz. Zaznacz `[x]` dopiero po sprawdzeniu opisanego efektu. Szczegółowe kryteria etapów i ich statusy są w [ROADMAP.md](ROADMAP.md).
 
@@ -8,9 +8,9 @@ Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek
 
 ## Teraz
 
-- [ ] **Autor zgłoszenia i komentarza z zalogowanego konta** — etap 4b
+- [ ] **Ustalenie ról i macierzy dostępu** — etap 4c
 
-  Przed zmianą modelu ustalić los dotychczasowych tekstowych autorów i przypisań. Nowe zgłoszenie i komentarz otrzymują identyfikator osoby zalogowanej na serwerze; nie wpisujemy autora dowolnym tekstem. Sprawdzić zachowanie osoby niezalogowanej.
+  Uzgodnić, kto widzi zgłoszenia i notatki, może odpowiadać, zmieniać status/priorytet i przypisywać agenta. Ustalić sposób nadawania roli agenta i zasady przejęcia już przypisanego zgłoszenia. Następnie wdrażać po jednej operacji z kontrolą uprawnień na serwerze.
 
 ## Domknięcie etapu 3
 
@@ -30,9 +30,13 @@ Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek
 
 - [ ] **Pusta baza z pełnego zestawu migracji** — etap 2
 
-  Sprawdzić utworzenie osobnej pustej bazy z aktualnych siedmiu migracji, w tym kategorii, liczbowych statusów i priorytetów oraz tabel Identity z imieniem i nazwiskiem. Wcześniejsza próba obejmowała tylko dwie pierwsze migracje.
+  Sprawdzić utworzenie osobnej pustej bazy z aktualnych ośmiu migracji, w tym tabel Identity z imieniem i nazwiskiem oraz relacji autorów i agenta. Wcześniejsza próba obejmowała tylko dwie pierwsze migracje.
 
 ## Wykonane
+
+- [x] **Autor zgłoszenia i komentarza z zalogowanego konta** — 22.10.2026 · etap 4b
+
+  Serwer pobiera `NameIdentifier` z tożsamości i sprawdza istnienie konta. Autor zgłoszenia i komentarza nie pochodzi z formularza; usunięto też pole agenta, a nowe zgłoszenia są nieprzypisane. Lista i szczegóły pokazują imię i nazwisko przez powiązane konto. Zapis zgłoszenia ignoruje podszyte pola szkicu, a komentarz i data aktualizacji zapisują się razem. `LinkTicketAuthorsToUsers` dodaje klucze obce i indeksy. Za zgodą użytkownika usunięto 10 starych zgłoszeń i 13 komentarzy bez powiązania z kontami; oba konta zachowano i porównano skrót wszystkich ich pól. Baza ma 8 migracji. Build bez błędów i ostrzeżeń, model zgodny ze snapshotem, 34 sprawdzenia metod komponentów, SQL i HTML serwera. Tożsamość symulowano na istniejących identyfikatorach; rzeczywiste zapisy SQL wycofano transakcją. Sprawdzono autorów dla dwóch kont, walidację, brak zalogowania/konta/zgłoszenia, podszyte dane i wyświetlanie nazw. Nie wykonano interaktywnej próby formularzy w przeglądarce. Macierz ról, przypisywanie i ochrona notatek pozostają w 4c.
 
 - [x] **Własny ekran odmowy dostępu** — 22.10.2026 · etap 4a
 

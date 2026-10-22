@@ -21,23 +21,23 @@ W trybie Interactive Server przeglądarka wyświetla interfejs i przekazuje inte
 
 ## Obecny stan
 
-Stan analizy i weryfikacji: **22 października 2026 r.** Podstawowe operacje na zgłoszeniach, logowanie, wylogowanie, ochronę stron i formularz tworzenia kont użytkownik sprawdził ręcznie z SQL Server. Późniejsze rozszerzenie o imię i nazwisko potwierdzono kompilacją, 51 izolowanymi sprawdzeniami HTTP i zastosowaniem migracji z kontrolą zachowania wcześniejszych danych kont. Szczegóły opisano w sekcji „Stan weryfikacji”.
+Stan analizy i weryfikacji: **22 października 2026 r.** Podstawowe operacje na zgłoszeniach, logowanie, wylogowanie, ochronę stron i formularz tworzenia kont użytkownik sprawdził ręcznie z SQL Server. Późniejsze rozszerzenia kont opisano w sekcji „Stan weryfikacji”. Najnowsza zmiana wiąże autorów zgłoszeń i komentarzy z kontami; potwierdzono ją kompilacją, migracją oraz 34 sprawdzeniami metod komponentów, SQL i HTML serwera. Próba interaktywna tej zmiany w przeglądarce pozostaje do wykonania.
 
 | Obszar | Stan w kodzie |
 | --- | --- |
-| Tworzenie zgłoszenia | Formularz, sprawdzanie wymaganych pól, jeden zapis do bazy, priorytet i tekstowo wpisywani zgłaszający oraz agent; numer `IT-{Id}` wyliczany w C# bez zer wiodących |
+| Tworzenie zgłoszenia | Zalogowana osoba automatycznie zostaje autorem; formularz zbiera tytuł, opis, kategorię i priorytet. Nowe zgłoszenie jest nieprzypisane. Numer `IT-{Id}` wyliczany w C# bez zer wiodących |
 | Lista zgłoszeń | Odczyt 10 najnowszych rekordów i przejście do szczegółów |
-| Szczegóły i komentarze | Odczyt zgłoszenia z komentarzami; zapis odpowiedzi i notatek z flagą `IsInternal` |
-| Schemat bazy | Siedem migracji EF Core, w tym `AddUserNames` z kolumnami imienia i nazwiska w `AspNetUsers`. Strony nie tworzą ani nie aktualizują schematu; `TicketNumber` nie jest kolumną bazy |
+| Szczegóły i komentarze | Autor odpowiedzi i notatki pochodzi z zalogowanego konta; lista i szczegóły pokazują imię i nazwisko autorów. Zapis komentarza aktualizuje także datę zgłoszenia |
+| Schemat bazy | Osiem migracji EF Core, w tym `LinkTicketAuthorsToUsers` z kluczami obcymi do kont. Strony nie tworzą ani nie aktualizują schematu; `TicketNumber` nie jest kolumną bazy |
 | Kategorie | Cztery wartości enuma `TicketCategory`; wybór w formularzu zapisuje się jako `int`, serwer sprawdza dozwoloną wartość przez `Enum.IsDefined`, szczegóły mapują ją na polską nazwę przez `GetCategoryName`; pozostają drobne poprawki tekstów |
 | Statusy i priorytety | `TicketStatus` i `TicketPriority` przechowywane jako `int`; wybór z listy w szczegółach zapisuje odpowiednie pole i `UpdatedAt`. Zamknięcie ustawia `ClosedAt`, a inny status ją czyści. Podstawowy zapis sprawdzony przez użytkownika; pełna weryfikacja dat i błędów pozostaje do wykonania |
-| Pozostałe przyciski w szczegółach | „Edytuj”, „Zmień status” i „Przypisz do mnie” nadal są nieaktywne. Status zmienia się listą; dwa pierwsze przyciski przeznaczono do usunięcia. Tekstowe przypisanie można podać przy tworzeniu |
+| Pozostałe przyciski w szczegółach | „Edytuj”, „Zmień status” i „Przypisz do mnie” nadal są nieaktywne. Status zmienia się listą; dwa pierwsze przyciski przeznaczono do usunięcia. Przypisywanie agentów pozostaje w etapie 4c |
 | Filtry, wyszukiwarka, paginacja | Elementy interfejsu bez zaimplementowanej logiki |
 | Załączniki | Makieta interfejsu, bez przesyłania i przechowywania plików |
 | Logowanie i role | Pierwszego administratora tworzy jawne polecenie `--bootstrap-admin=true`; użytkownik potwierdził `UserCount = 1`. Działają formularz `/login`, POST `/logout`, ochrona stron w `Components/Pages/Main` oraz nazwa i opis roli zalogowanej osoby w menu. Pełne uprawnienia do zgłoszeń pozostają do wdrożenia |
 | Panel administratora | `/admin` wymaga roli `Admin`. Pokazuje liczbę kont i tabelę: imię, nazwisko, login; sortuje po nazwisku, imieniu i loginie. Wysuwany formularz tworzy zwykłe konto przez `UserManager`. `/profile` pozostaje pustą stroną ustawień |
 | Odmowa dostępu | Niezalogowana osoba trafia na `/login`. Zalogowana osoba bez wymaganej roli trafia na `/access-denied`, gdzie otrzymuje komunikat, link do strony głównej i odpowiedź HTTP 403 |
-| Nazwa osoby | `FirstName` i `LastName` przechowywane osobno, po maksymalnie 100 znaków. Menu odczytuje je z tożsamości logowania i wylicza inicjały. Powiązania zgłoszeń z kontami będą korzystać z `Id`, a nie z imienia i nazwiska |
+| Nazwa osoby | `FirstName` i `LastName` przechowywane osobno, po maksymalnie 100 znaków. Menu odczytuje je z tożsamości logowania. Zgłoszenia i komentarze wskazują konto przez `Id`, a `DisplayName` składa nazwę do wyświetlenia |
 | Dashboard | Strona główna nadal zawiera treść szablonu |
 | Przykłady z szablonu | Strony Counter i Weather usunięto; serwis zapisu JSON pozostaje w projekcie |
 
@@ -46,8 +46,8 @@ Stan analizy i weryfikacji: **22 października 2026 r.** Podstawowe operacje na 
 - Notatki „wewnętrzne” są pobierane wraz z pozostałymi komentarzami. Flaga i wygląd nie ograniczają dostępu do zespołu IT.
 - Aplikacja wymaga bazy przygotowanej migracjami. Nie wykonuje ich automatycznie przy starcie ani podczas otwierania stron. Dotychczasowa baza utworzona przez `EnsureCreatedAsync` wymaga osobnego przygotowania historii migracji; zwykła aktualizacja nie rozpoznaje automatycznie istniejących tabel.
 - Numer `TicketNumber` jest właściwością C# z `[NotMapped]`. Wyszukiwanie numeru w zapytaniu EF powinno wykorzystywać odpowiadające mu `Id`; właściwość wyliczana nie jest kolumną SQL.
-- Pola nazwane `CreatedByUserId`, `AssignedAgentId` i `AuthorUserId` przechowują obecnie wpisywany tekst, bez powiązania z kontami.
-- Obsługa błędów stron zgłoszeń nadal wyświetla treść wyjątków. Logowanie i tworzenie kont pokazują przyjazny komunikat i zapisują wyjątek w logach. Nie ma stałego projektu testów automatycznych.
+- `CreatedByUserId`, `AssignedAgentId` i `AuthorUserId` są kluczami obcymi do `AspNetUsers.Id`. Usunięcie powiązanego konta jest blokowane (`NoAction`); przyszłe usuwanie lub dezaktywacja kont wymaga osobnej decyzji. Nazwy autorów są odczytywane z bieżących danych konta, bez historycznej kopii nazwy.
+- Odczyt zgłoszeń i zmiany statusu/priorytetu nadal pokazują szczegóły wyjątków. Tworzenie zgłoszenia, dodawanie komentarza, logowanie i tworzenie kont pokazują przyjazny komunikat i zapisują wyjątek w logach. Nie ma stałego projektu testów automatycznych.
 - Zmiana statusu sprawdza wartość enuma, ale nie ogranicza przejść między statusami. Wybór tej samej wartości nadal aktualizuje datę; reguły i sprawdzenia pozostają w roadmapie. Błędy aktualizacji wyświetlane są przy listach, bez ukrywania szczegółów; błąd początkowego odczytu i brak rekordu mają osobny ekran.
 
 ## Struktura projektu
@@ -74,12 +74,12 @@ Stan analizy i weryfikacji: **22 października 2026 r.** Podstawowe operacje na 
 ### Droga od formularza do bazy
 
 1. Użytkownik uzupełnia formularz w `Components/Pages/Main/CreateTicket.razor`. `@bind-Value` wiąże pola z obiektem `ticketDraft`.
-2. Wysłanie `EditForm` uruchamia na serwerze `CreateTicketAsync`. Metoda sprawdza tytuł, opis i zgłaszającego oraz ustawia wartości początkowe.
+2. Wysłanie `EditForm` uruchamia na serwerze `CreateTicketAsync`. Metoda sprawdza tytuł, opis i enumy kategorii oraz priorytetu. `AuthenticationStateProvider` udostępnia tożsamość; `ClaimTypes.NameIdentifier` wskazuje identyfikator konta. Metoda wymaga zalogowania i sprawdza, czy konto nadal istnieje w bazie.
 3. Wstrzyknięta przez DI fabryka `IDbContextFactory<AppDbContext>` tworzy kontekst do operacji na bazie. Rejestracja fabryki znajduje się w `Program.cs`.
 4. Kontekst korzysta ze struktury przygotowanej wcześniej migracjami. Komponent nie tworzy tabel ani nie wykonuje ręcznego SQL poprawiającego schemat lub numery istniejących zgłoszeń.
-5. `Tickets.Add` dodaje obiekt do śledzenia przez EF. Jedyne `SaveChangesAsync` zapisuje go w SQL Server i uzupełnia `Id`.
+5. Metoda tworzy nowy `TicketData`, kopiując wyłącznie pola formularza. Autora, status `New`, datę i brak przypisania ustala serwer. `Tickets.Add` dodaje obiekt do śledzenia przez EF. Jedyne `SaveChangesAsync` zapisuje go w SQL Server i uzupełnia `Id`.
 6. Właściwość `TicketNumber` zwraca `IT-{Id}`, np. `IT-7`. Numer jest wyliczany przy odczycie właściwości, bez zapisu w bazie. Komponent wyświetla komunikat i czyści formularz. Nie ma już osobnego zapisu numeru wymagającego wspólnej transakcji z utworzeniem zgłoszenia.
-7. Lista wykonuje osobny odczyt przez EF, a szczegóły dołączają komentarze przez `Include`. Zapis komentarza aktualizuje również `UpdatedAt` zgłoszenia.
+7. Lista dołącza konta autora i agenta przez `Include`; szczegóły także komentarze z ich autorami przez `ThenInclude`. `DisplayName` wyświetla imię i nazwisko, a dla konta bez nazw — login. Dodanie komentarza ponownie odczytuje tożsamość i konto, sprawdza istnienie zgłoszenia i jednym `SaveChangesAsync` zapisuje komentarz oraz `UpdatedAt`. Autor nie jest polem formularza.
 8. W szczegółach `@bind-Value:get` / `@bind-Value:set` łączy listy z metodami `ChangeStatus` i `ChangePriority`. Nowy kontekst pobiera śledzony rekord, zmienia odpowiednie pole i daty, a `SaveChangesAsync` zapisuje zmiany. Dopiero po sukcesie aktualizowany jest obiekt używany przez widok. `isUpdating` blokuje kolejne wywołania i obie listy na czas zapisu.
 
 ## Uruchomienie lokalne
@@ -101,7 +101,7 @@ W uporządkowanym środowisku lokalnym pozostały dwie bazy:
 
 | Baza | Przeznaczenie |
 | --- | --- |
-| `layZTicketsDb` | Aktualna baza robocza aplikacji; odczyt i zapis, wszystkie trzy migracje |
+| `layZTicketsDb` | Aktualna baza robocza aplikacji; odczyt i zapis, osiem migracji |
 | `layZTicketsDb_backup` | Odtworzona kopia stanu z chwili porządkowania nazw; ustawiona jako tylko do odczytu, z własnymi plikami danych i logu |
 
 Obie bazy miały w chwili utworzenia kopii 7 zgłoszeń i 10 komentarzy. Kopia nie synchronizuje się automatycznie z bazą roboczą i nie jest archiwum kolejnych wersji rekordów. Przed kolejnymi zmianami wymagającymi zabezpieczenia danych należy wykonać świeży backup; dotychczasowe pliki `.bak` zachowano w folderze backupów SQL Server. Kopia na tym samym serwerze umożliwia ćwiczenie odtwarzania, ale nie zastępuje przechowywania plików backupu poza tym serwerem.
@@ -153,6 +153,7 @@ dotnet build layZTickets.sln --no-restore
 | `20261021122842_ConvertTicketStatusAndPriorityToEnums` | Konwersja `Status` i `Priority` z tekstu na `int` zgodnie z enumami; dawne `Critical` odpowiada `Highest = 3` |
 | `20261021150554_AddIdentitySchema` | Siedem tabel Identity (`AspNetUsers`, `AspNetRoles`, `AspNetUserRoles`, `AspNetUserClaims`, `AspNetRoleClaims`, `AspNetUserLogins`, `AspNetUserTokens`) wraz z relacjami i indeksami; bez zmian tabel zgłoszeń. Zastosowanie potwierdzone przez użytkownika |
 | `20261022173719_AddUserNames` | `AspNetUsers.FirstName` i `LastName`, obie `nvarchar(100)` i wymagane. Uzgodnione dane demonstracyjne istniejących kont: Admin Admin dla administratora, Jan Kowalski dla zwykłego konta. Zastosowana przez agenta do bazy roboczej |
+| `20261022182842_LinkTicketAuthorsToUsers` | Klucze obce autorów zgłoszeń, komentarzy i opcjonalnego agenta do `AspNetUsers`, indeksy i kolumny identyfikatorów `nvarchar(450)`. Usunięcie starych rekordów bez kont autorów; wyczyszczenie nieprawidłowych przypisań |
 
 Migracje opisują kolejne decyzje projektowe: pierwsza tworzyła kolumnę numeru, druga dodała indeks, a trzecia usuwa obie struktury. Po zastosowaniu wszystkich trzech baza nie przechowuje numeru zgłoszenia. `Down()` trzeciej migracji przywraca kolumnę z pustymi wartościami i indeks, ale nie odtwarza historycznej zawartości usuniętej kolumny; przed jej usunięciem wykonano i zweryfikowano backup kopii bazy.
 
@@ -163,6 +164,8 @@ Piąta migracja mapuje tekstowe statusy na `New = 0`, `InProgress = 1`, `Pending
 Szósta migracja tworzy strukturę Identity. Samo wygenerowanie plików i skryptu SQL nie wykonuje zmian w bazie. Użytkownik zastosował ją i potwierdził sześć migracji bez `Pending`, siedem tabel `AspNet...` i `UserCount = 0`. Migracja nie tworzy administratora, nie uruchamia logowania ani nie wiąże dotychczasowych tekstowych autorów zgłoszeń z kontami. `Down()` usuwa siedem tabel Identity wraz z ich ewentualną zawartością, bez usuwania tabel zgłoszeń. Przed stosowaniem migracji w innym środowisku trzeba sprawdzić docelowe połączenie i stan bazy.
 
 Siódma migracja dodaje imię i nazwisko, a istniejące konta uzupełnia uzgodnionymi danymi demonstracyjnymi na podstawie roli `Admin`. Nie zmienia identyfikatorów, loginów, haseł ani przypisań do ról. `Down()` usuwa obie nowe kolumny wraz z ich zawartością. Nowe konta dostają dane z formularza, nie wartości demonstracyjne. W bazie roboczej potwierdzono 7 migracji, 2 konta, 10 zgłoszeń i 13 komentarzy oraz zgodność skrótu wszystkich dotychczasowych pól użytkowników sprzed i po migracji.
+
+Ósma migracja usuwa komentarze bez istniejącego konta autora oraz zgłoszenia bez takiego konta (wraz z ich komentarzami). Nieprawidłowe przypisania agenta zamienia na `NULL`. Pozostałe rekordy zachowuje. Zgodnie ze zgodą użytkownika w bazie roboczej usunięto 10 starych zgłoszeń i 13 komentarzy; oba konta i wszystkie ich pola pozostały niezmienione. `Down()` cofa relacje, indeksy i typy kolumn, ale nie odtwarza usuniętych danych. Przed zastosowaniem w innym środowisku należy ocenić te usunięcia.
 
 Dla nowej bazy, po ustawieniu przykładowego połączenia powyżej:
 
@@ -271,7 +274,8 @@ Przy tworzeniu pierwszego administratora domyślne imię i nazwisko to Admin Adm
 | Imię i nazwisko — zachowanie | 51 izolowanych sprawdzeń HTTP z magazynem w pamięci: poprzednie reguły tworzenia kont oraz wymagane nazwy, limit 100 znaków, przycinanie spacji, dwa imiona, polskie znaki i nazwiska z łącznikiem, poprawna nazwa i inicjały po logowaniu oraz różne identyfikatory kont o identycznych nazwach. Agent nie wykonywał interaktywnego logowania do lokalnej aplikacji po tej zmianie |
 | Lista kont w panelu administratora | Build bez błędów i ostrzeżeń. 60 sprawdzeń HTTP z magazynem kont w pamięci i adapterem odczytu EF obejmuje wcześniejsze reguły oraz licznik, pustą listę, obsługę błędu odczytu, zachowanie formularza, odświeżenie listy po utworzeniu konta, sortowanie i brak hasła oraz hasha w tabeli. Osobne 12 sprawdzeń potwierdziło HTML listy obu istniejących kont z `layZTicketsDb` i zgodność kolejności; ten wariant używał kont testowych w pamięci do uwierzytelniania, a SQL wyłącznie do odczytu listy. Nie zmieniono schematu ani danych SQL i nie wykonano interaktywnej próby nowej tabeli w przeglądarce |
 | Ekran odmowy dostępu | Build bez błędów i ostrzeżeń. 66 izolowanych sprawdzeń HTTP z rzeczywistym Identity i danymi w pamięci: wcześniejsze funkcje oraz przekierowanie zwykłego konta z GET i POST `/admin` na własny ekran, odpowiedź 403 z komunikatem bez danych panelu administratora, działający powrót do strony głównej, skierowanie osoby niezalogowanej na login i brak przekierowania na zewnętrzny `ReturnUrl`. Nie korzystano z SQL Server ani nie wykonano interaktywnej próby nowego ekranu w przeglądarce |
-| Pusta baza z aktualnymi siedmioma migracjami | Do sprawdzenia; dotychczasowy test pustej bazy obejmował dwie pierwsze migracje |
+| Autorzy zgłoszeń i komentarzy — 22.10.2026 | Build bez błędów i ostrzeżeń, model zgodny ze snapshotem. Zastosowano `LinkTicketAuthorsToUsers`: 8 migracji, 2 konta, 0 zgłoszeń i 0 komentarzy po uzgodnionym usunięciu starych rekordów. Skrót wszystkich pól kont pozostał zgodny. 34 sprawdzenia metod skompilowanych komponentów, SQL i HTML serwera: różni autorzy, odrzucenie anonimowej lub niepełnej tożsamości i usuniętego konta, ignorowanie podszytego autora/agenta/statusu w szkicu, walidacja pól i enumów, autor odpowiedzi oraz notatki, aktualizacja daty, brak zgłoszenia, przekierowania chronionych stron, nazwy autorów i brak edytowalnych pól autora/agenta. Uwierzytelnienie było symulowane na istniejących identyfikatorach, zapis SQL rzeczywisty w transakcji wycofanej po testach. Potwierdzono brak pozostawionych rekordów testowych. Nie wykonano interaktywnej próby formularzy w przeglądarce |
+| Pusta baza z aktualnymi ośmioma migracjami | Do sprawdzenia; dotychczasowy test pustej bazy obejmował dwie pierwsze migracje |
 | Testy automatyczne | Brak projektu testowego |
 
 Przed zmianami użytkownik potwierdził tworzenie zgłoszeń, ich obecność na liście, szczegóły, odpowiedzi, notatki i trwałość po odświeżeniu. Po usunięciu kodu poprawiającego schemat powtórzył główne operacje na kopii po migracjach, potwierdzając poprawny odczyt, zapis i aktualizację daty. Próba pustej bazy potwierdza przygotowanie struktury, nie obejmowała jeszcze interfejsu tej bazy.

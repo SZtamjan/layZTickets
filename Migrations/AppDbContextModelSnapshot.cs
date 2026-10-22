@@ -240,7 +240,7 @@ namespace layZTickets.Migrations
 
                     b.Property<string>("AuthorUserId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Content")
                         .IsRequired()
@@ -262,6 +262,8 @@ namespace layZTickets.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AuthorUserId");
+
                     b.HasIndex("TicketId");
 
                     b.ToTable("TicketComments");
@@ -276,7 +278,7 @@ namespace layZTickets.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("AssignedAgentId")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<int>("Category")
                         .HasColumnType("int");
@@ -289,7 +291,7 @@ namespace layZTickets.Migrations
 
                     b.Property<string>("CreatedByUserId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -309,6 +311,10 @@ namespace layZTickets.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AssignedAgentId");
+
+                    b.HasIndex("CreatedByUserId");
 
                     b.ToTable("Tickets");
                 });
@@ -366,13 +372,39 @@ namespace layZTickets.Migrations
 
             modelBuilder.Entity("layZTickets.DataSets.TicketComment", b =>
                 {
+                    b.HasOne("layZTickets.Data.ApplicationUser", "AuthorUser")
+                        .WithMany()
+                        .HasForeignKey("AuthorUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
                     b.HasOne("layZTickets.DataSets.TicketData", "Ticket")
                         .WithMany("Comments")
                         .HasForeignKey("TicketId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("AuthorUser");
+
                     b.Navigation("Ticket");
+                });
+
+            modelBuilder.Entity("layZTickets.DataSets.TicketData", b =>
+                {
+                    b.HasOne("layZTickets.Data.ApplicationUser", "AssignedAgent")
+                        .WithMany()
+                        .HasForeignKey("AssignedAgentId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("layZTickets.Data.ApplicationUser", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("AssignedAgent");
+
+                    b.Navigation("CreatedByUser");
                 });
 
             modelBuilder.Entity("layZTickets.DataSets.TicketData", b =>

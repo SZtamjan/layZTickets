@@ -5,6 +5,8 @@
 @using layZTickets.Data
 @using layZTickets.DataSets
 @inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<DisplayTicket> Logger
 
 <PageTitle>Ticket</PageTitle>
 
@@ -75,9 +77,9 @@
             <main class="ticket-conversation">
                 <section class="ticket-message-card">
                     <div class="message-author">
-                        <div class="message-avatar">@GetInitials(ticket.CreatedByUserId)</div>
+                        <div class="message-avatar">@GetInitials(ticket.CreatedByUser.DisplayName)</div>
                         <div>
-                            <strong>@ticket.CreatedByUserId</strong>
+                            <strong>@ticket.CreatedByUser.DisplayName</strong>
                             <span>@ticket.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
                         </div>
                     </div>
@@ -109,7 +111,7 @@
                             <span></span>
                             <div>
                                 <strong>@(comment.IsInternal ? "Notatka wewnętrzna" : "Odpowiedź")</strong>
-                                <p class="comment-author">@comment.AuthorUserId</p>
+                                <p class="comment-author">@comment.AuthorUser.DisplayName</p>
                                 <p>@comment.Content</p>
                                 <small>@comment.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small>
                             </div>
@@ -122,11 +124,6 @@
                     {
                         <div class="comment-error" role="alert">@commentErrorMessage</div>
                     }
-
-                    <div class="reply-author">
-                        <label for="comment-author">Autor</label>
-                        <input id="comment-author" class="desk-input" @bind="commentAuthor" @bind:event="oninput" />
-                    </div>
 
                     <textarea class="reply-textarea" @bind="commentContent" @bind:event="oninput" placeholder="Wpisz odpowiedź dla użytkownika lub notatkę..."></textarea>
                     <footer>
@@ -160,7 +157,7 @@
                     <dl>
                         <div>
                             <dt>Użytkownik</dt>
-                            <dd>@ticket.CreatedByUserId</dd>
+                            <dd>@ticket.CreatedByUser.DisplayName</dd>
                         </div>
                         <div>
                             <dt>Karegoria</dt>
@@ -168,7 +165,7 @@
                         </div>
                         <div>
                             <dt>Przypisany agent</dt>
-                            <dd>@(string.IsNullOrWhiteSpace(ticket.AssignedAgentId) ? "Nieprzypisany" : ticket.AssignedAgentId)</dd>
+                            <dd>@(ticket.AssignedAgent?.DisplayName ?? "Nieprzypisany")</dd>
                         </div>
                         <div>
                             <dt>Data utworzenia</dt>
@@ -206,7 +203,6 @@
     private bool isLoading = true;
     private bool isUpdating = false;
     private bool isAddingComment;
-    private string commentAuthor = "Agent IT";
     private string commentContent = string.Empty;
     private string? errorMessage;
     private string? commentErrorMessage;
@@ -225,7 +221,10 @@
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
 
             ticket = await dbContext.Tickets
+                .Include(ticket => ticket.CreatedByUser)
+                .Include(ticket => ticket.AssignedAgent)
                 .Include(ticket => ticket.Comments)
+                    .ThenInclude(comment => comment.AuthorUser)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
         }
@@ -358,17 +357,16 @@
 
     private async Task AddCommentAsync(bool isInternal)
     {
+        if (isAddingComment)
+        {
+            return;
+        }
+
         commentErrorMessage = null;
 
         if (TicketId is null || ticket is null)
         {
             commentErrorMessage = "Nie można dodać komentarza bez wybranego ticketu.";
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(commentAuthor))
-        {
-            commentErrorMessage = "Podaj autora komentarza.";
             return;
         }
 
@@ -382,34 +380,55 @@
 
         try
         {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authenticationState.User;
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (user.Identity?.IsAuthenticated != true || string.IsNullOrWhiteSpace(userId))
+            {
+                commentErrorMessage = "Zaloguj się ponownie, aby dodać komentarz.";
+                return;
+            }
+
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+
+            var author = await dbContext.Users.AsNoTracking().FirstOrDefaultAsync(account => account.Id == userId);
+            if (author is null)
+            {
+                commentErrorMessage = "Konto użytkownika już nie istnieje. Zaloguj się ponownie.";
+                return;
+            }
+
+            var ticketToUpdate = await dbContext.Tickets.FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
+            if (ticketToUpdate is null)
+            {
+                commentErrorMessage = "Zgłoszenie już nie istnieje.";
+                return;
+            }
 
             var comment = new TicketComment
             {
                 TicketId = TicketId.Value,
-                AuthorUserId = commentAuthor.Trim(),
+                AuthorUserId = userId,
                 Content = commentContent.Trim(),
                 IsInternal = isInternal,
                 CreatedAt = DateTime.UtcNow
             };
 
             dbContext.TicketComments.Add(comment);
-
-            var ticketToUpdate = await dbContext.Tickets.FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
-            if (ticketToUpdate is not null)
-            {
-                ticketToUpdate.UpdatedAt = DateTime.UtcNow;
-            }
+            ticketToUpdate.UpdatedAt = comment.CreatedAt;
 
             await dbContext.SaveChangesAsync();
 
+            comment.AuthorUser = author;
             ticket.Comments.Add(comment);
-            ticket.UpdatedAt = ticketToUpdate?.UpdatedAt ?? ticket.UpdatedAt;
+            ticket.UpdatedAt = ticketToUpdate.UpdatedAt;
             commentContent = string.Empty;
         }
         catch (Exception exception)
         {
-            commentErrorMessage = $"Nie udało się zapisać komentarza: {exception.Message}";
+            Logger.LogError(exception, "Nie udało się dodać komentarza do zgłoszenia {TicketId}.", TicketId);
+            commentErrorMessage = "Nie udało się zapisać komentarza. Spróbuj ponownie.";
         }
         finally
         {

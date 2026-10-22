@@ -16,7 +16,9 @@ namespace layZTickets.DataSets
         public DateTime? ClosedAt { get; set; }
 
         public string CreatedByUserId { get; set; } = string.Empty;
+        public layZTickets.Data.ApplicationUser CreatedByUser { get; set; } = default!;
         public string? AssignedAgentId { get; set; }
+        public layZTickets.Data.ApplicationUser? AssignedAgent { get; set; }
 
         public List<TicketComment> Comments { get; set; } = new();
         //public List<TicketHistory> History { get; set; } = new();

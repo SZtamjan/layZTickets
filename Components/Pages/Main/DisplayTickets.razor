@@ -77,8 +77,6 @@
                     <tbody>
                         @foreach (var ticket in tickets)
                         {
-                            var reporter = SplitReporterName(ticket.CreatedByUserId);
-
                             <tr>
                                 <td>
                                     <a class="ticket-id" href="@($"DisplayTicket/{ticket.Id}")">
@@ -99,11 +97,11 @@
                                         @ticket.Priority
                                     </span>
                                 </td>
-                                <td>@reporter.FirstName @reporter.LastName</td>
+                                <td>@ticket.CreatedByUser.DisplayName</td>
                                 <td>
                                     <div class="agent-cell">
-                                        <span>@GetInitials(ticket.AssignedAgentId)</span>
-                                        <strong>@(string.IsNullOrWhiteSpace(ticket.AssignedAgentId) ? "Nieprzypisany" : ticket.AssignedAgentId)</strong>
+                                        <span>@GetInitials(ticket.AssignedAgent?.DisplayName)</span>
+                                        <strong>@(ticket.AssignedAgent?.DisplayName ?? "Nieprzypisany")</strong>
                                     </div>
                                 </td>
                                 <td>@ticket.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
@@ -141,6 +139,8 @@
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
 
             tickets = await dbContext.Tickets
+                .Include(ticket => ticket.CreatedByUser)
+                .Include(ticket => ticket.AssignedAgent)
                 .AsNoTracking()
                 .OrderByDescending(ticket => ticket.CreatedAt)
                 .Take(10)
@@ -181,15 +181,4 @@
         return string.Concat(parts.Take(2).Select(part => char.ToUpperInvariant(part[0])));
     }
 
-    private static (string FirstName, string LastName) SplitReporterName(string reporter)
-    {
-        var parts = reporter.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        return parts.Length switch
-        {
-            0 => ("Brak", "Brak"),
-            1 => (parts[0], "Brak"),
-            _ => (parts[0], string.Join(' ', parts.Skip(1)))
-        };
-    }
 }

@@ -4,6 +4,8 @@
 @using layZTickets.Data
 @using layZTickets.DataSets
 @inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<CreateTicket> Logger
 
 <PageTitle>Nowe Zgłoszenie</PageTitle>
 
@@ -51,14 +53,6 @@
                         }
                     </div>
 
-                    <div>
-                        <label for="created-by">Zgłaszający</label>
-                        <InputText id="created-by" class="desk-input" @bind-Value="ticketDraft.CreatedByUserId" placeholder="Imię i nazwisko lub login" />
-                        @if (submitted && string.IsNullOrWhiteSpace(ticketDraft.CreatedByUserId))
-                        {
-                            <div class="validation-message">Podaj osobę zgłaszającą.</div>
-                        }
-                    </div>
                 </div>
             </section>
 
@@ -109,10 +103,6 @@
                         </InputSelect>
                     </div>
 
-                    <div>
-                        <label for="assigned-agent">Przypisany agent</label>
-                        <InputText id="assigned-agent" class="desk-input" @bind-Value="ticketDraft.AssignedAgentId" placeholder="Opcjonalnie" />
-                    </div>
                 </div>
             </section>
 
@@ -141,6 +131,11 @@
 
     private async Task CreateTicketAsync()
     {
+        if (isSaving)
+        {
+            return;
+        }
+
         submitted = true;
         successMessage = null;
         errorMessage = null;
@@ -154,11 +149,15 @@
 
         try
         {
-            ticketDraft.Status = TicketStatus.New;
-            ticketDraft.CreatedAt = DateTime.UtcNow;
-            ticketDraft.UpdatedAt = null;
-            ticketDraft.ClosedAt = null;
-            ticketDraft.Comments = new List<TicketComment>();
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authenticationState.User;
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (user.Identity?.IsAuthenticated != true || string.IsNullOrWhiteSpace(userId))
+            {
+                errorMessage = "Zaloguj się ponownie, aby utworzyć zgłoszenie.";
+                return;
+            }
 
             if (!Enum.IsDefined(ticketDraft.Category))
             {
@@ -166,18 +165,43 @@
                 return;
             }
 
+            if (!Enum.IsDefined(ticketDraft.Priority))
+            {
+                errorMessage = "Wybierz poprawny priorytet zgłoszenia.";
+                return;
+            }
+
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
 
-            dbContext.Tickets.Add(ticketDraft);
+            if (!await dbContext.Users.AnyAsync(account => account.Id == userId))
+            {
+                errorMessage = "Konto użytkownika już nie istnieje. Zaloguj się ponownie.";
+                return;
+            }
+
+            var ticket = new TicketData
+            {
+                Title = ticketDraft.Title.Trim(),
+                Description = ticketDraft.Description.Trim(),
+                Category = ticketDraft.Category,
+                Priority = ticketDraft.Priority,
+                CreatedByUserId = userId,
+                AssignedAgentId = null,
+                Status = TicketStatus.New,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            dbContext.Tickets.Add(ticket);
             await dbContext.SaveChangesAsync();
 
-            successMessage = $"Ticket {ticketDraft.TicketNumber} został utworzony.";
+            successMessage = $"Ticket {ticket.TicketNumber} został utworzony.";
             ticketDraft = CreateEmptyTicket();
             submitted = false;
         }
         catch (Exception exception)
         {
-            errorMessage = $"Nie udało się zapisać ticketu: {exception.Message}";
+            Logger.LogError(exception, "Nie udało się utworzyć zgłoszenia.");
+            errorMessage = "Nie udało się zapisać zgłoszenia. Spróbuj ponownie.";
         }
         finally
         {
@@ -188,8 +212,7 @@
     private bool IsValid()
     {
         return !string.IsNullOrWhiteSpace(ticketDraft.Title)
-            && !string.IsNullOrWhiteSpace(ticketDraft.Description)
-            && !string.IsNullOrWhiteSpace(ticketDraft.CreatedByUserId);
+            && !string.IsNullOrWhiteSpace(ticketDraft.Description);
     }
 
     private static TicketData CreateEmptyTicket()
