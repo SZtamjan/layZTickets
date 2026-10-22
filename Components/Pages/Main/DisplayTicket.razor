@@ -74,10 +74,6 @@
                     <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
                     Lista
                 </a>
-                <button class="desk-primary-button" type="button">
-                    <span class="material-symbols-outlined" aria-hidden="true">edit</span>
-                    Edytuj
-                </button>
             </div>
         </section>
 
@@ -164,7 +160,7 @@
                             <dd>@ticket.CreatedByUser.DisplayName</dd>
                         </div>
                         <div>
-                            <dt>Karegoria</dt>
+                            <dt>Kategoria</dt>
                             <dd>@GetCategoryName(ticket.Category)</dd>
                         </div>
                         <div>
@@ -288,7 +284,7 @@
 
         if (!Enum.IsDefined(newStatus))
         {
-            updateErrorMessage = "Wybierz prawidłowy Status.";
+            updateErrorMessage = "Wybierz prawidłowy status.";
             return;
         }
 
@@ -329,7 +325,8 @@
         }
         catch (Exception exception)
         {
-            updateErrorMessage = $"Nie udało się pobrać ticketu: {exception.Message}";
+            Logger.LogError(exception, "Nie udało się zmienić statusu zgłoszenia {TicketId}.", TicketId);
+            updateErrorMessage = "Nie udało się zmienić statusu zgłoszenia. Spróbuj ponownie.";
         }
         finally
         {
@@ -393,7 +390,8 @@
         }
         catch (Exception exception)
         {
-            updateErrorMessage = $"Nie udało się pobrać ticketu: {exception.Message}";
+            Logger.LogError(exception, "Nie udało się zmienić priorytetu zgłoszenia {TicketId}.", TicketId);
+            updateErrorMessage = "Nie udało się zmienić priorytetu zgłoszenia. Spróbuj ponownie.";
         }
         finally
         {
@@ -528,6 +526,6 @@
                 return "Sieć";
         }
 
-        return "Incorrect category";
+        return "Nieznana kategoria";
     }
 }
