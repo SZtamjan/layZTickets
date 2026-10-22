@@ -1,16 +1,12 @@
 # TODO — layZTickets
 
-Krótka lista do odhaczania zamiast osobnego narzędzia do zadań. Stan na 22.10.2026: użytkownik potwierdził próby tworzenia kont z SQL Server i w przeglądarce. Dodano wymagane imię i nazwisko nowych kont, zastosowano siódmą migrację i uzupełniono dotychczasowe konta. Menu wyświetla pełną nazwę po ponownym zalogowaniu. Rozszerzenie przeszło kompilację, weryfikację bazy i 51 izolowanych sprawdzeń HTTP.
+Krótka lista do odhaczania zamiast osobnego narzędzia do zadań. Stan na 22.10.2026: tworzenie kont, imię i nazwisko oraz lista kont w panelu administratora są zaimplementowane. Lista przeszła kompilację, izolowane próby HTTP i odczyt istniejących kont z SQL Server. Z etapu 4a pozostaje własny ekran odmowy dostępu; pełne uprawnienia do zgłoszeń należą do dalszych części roadmapy.
 
 Pracujemy nad jednym punktem naraz. Zaznacz `[x]` dopiero po sprawdzeniu opisanego efektu. Szczegółowe kryteria etapów i ich statusy są w [ROADMAP.md](ROADMAP.md).
 
 Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek. Status i priorytet zmieniamy osobnymi listami rozwijanymi, a wybór od razu uruchamia zapis w bazie przez kod serwera. Po dodaniu kont „Przypisz do mnie” zapisze zalogowaną osobę po jednym kliknięciu.
 
 ## Teraz
-
-- [ ] **Lista kont w panelu administratora** — etap 4a
-
-  Wyświetlić imię, nazwisko i login utworzonych kont w tym samym panelu, zgodnie z ustalonym układem. Nie wyświetlać haseł ani ich hashy. Rozbudowa pustego „Mojego profilu”, w tym zmiana loginu i hasła, pozostaje na później.
 
 - [ ] **Własny ekran odmowy dostępu** — etap 4a
 
@@ -43,6 +39,10 @@ Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek
   Sprawdzić utworzenie osobnej pustej bazy z aktualnych siedmiu migracji, w tym kategorii, liczbowych statusów i priorytetów oraz tabel Identity z imieniem i nazwiskiem. Wcześniejsza próba obejmowała tylko dwie pierwsze migracje.
 
 ## Wykonane
+
+- [x] **Lista kont w panelu administratora** — 22.10.2026 · etap 4a
+
+  `/admin` pokazuje imię, nazwisko i login wszystkich kont, ich liczbę oraz stan pusty i błąd odczytu. Sortowanie: nazwisko, imię, login. Krótko żyjący kontekst z fabryki EF pobiera tylko pola potrzebne do tabeli, bez hashy i innych danych uwierzytelniania. Po utworzeniu konta przekierowanie na GET ponownie odczytuje listę. Ochrona roli `Admin` obejmuje stronę i metodę odczytu. Build bez błędów i ostrzeżeń. 60 sprawdzeń HTTP z danymi testowymi w pamięci oraz 12 sprawdzeń w wariancie z odczytem SQL potwierdziły m.in. pojawienie się nowego konta, licznik, kolejność, stan pusty, błąd listy i odmowę dostępu. Na SQL odczytano oba istniejące konta, bez zapisu i bez zmiany schematu. Sprawdzano HTML generowany na serwerze, bez interaktywnej próby nowej tabeli w przeglądarce. Rozbudowa pustego „Mojego profilu”, w tym zmiana loginu i hasła, pozostaje na później.
 
 - [x] **Tworzenie kolejnych kont przez administratora — próba z SQL Server** — 22.10.2026 · etap 4a
 

@@ -35,7 +35,7 @@ Stan analizy i weryfikacji: **22 października 2026 r.** Podstawowe operacje na 
 | Filtry, wyszukiwarka, paginacja | Elementy interfejsu bez zaimplementowanej logiki |
 | Załączniki | Makieta interfejsu, bez przesyłania i przechowywania plików |
 | Logowanie i role | Pierwszego administratora tworzy jawne polecenie `--bootstrap-admin=true`; użytkownik potwierdził `UserCount = 1`. Działają formularz `/login`, POST `/logout`, ochrona stron w `Components/Pages/Main` oraz nazwa i opis roli zalogowanej osoby w menu. Pełne uprawnienia do zgłoszeń pozostają do wdrożenia |
-| Panel administratora | `/admin` wymaga roli `Admin`. Wysuwany formularz tworzy zwykłe konto przez `UserManager`, wymaga imienia i nazwiska oraz sprawdza e-mail, potwierdzenie hasła i reguły Identity. Lista kont jest planowana; `/profile` pozostaje pustą stroną ustawień |
+| Panel administratora | `/admin` wymaga roli `Admin`. Pokazuje liczbę kont i tabelę: imię, nazwisko, login; sortuje po nazwisku, imieniu i loginie. Wysuwany formularz tworzy zwykłe konto przez `UserManager`. `/profile` pozostaje pustą stroną ustawień |
 | Nazwa osoby | `FirstName` i `LastName` przechowywane osobno, po maksymalnie 100 znaków. Menu odczytuje je z tożsamości logowania i wylicza inicjały. Powiązania zgłoszeń z kontami będą korzystać z `Id`, a nie z imienia i nazwiska |
 | Dashboard | Strona główna nadal zawiera treść szablonu |
 | Przykłady z szablonu | Strony Counter i Weather usunięto; serwis zapisu JSON pozostaje w projekcie |
@@ -56,7 +56,7 @@ Stan analizy i weryfikacji: **22 października 2026 r.** Podstawowe operacje na 
 | `Program.cs` | Konfiguracja aplikacji, fabryki kontekstów EF, usług Identity, uwierzytelniania, autoryzacji i trybu renderowania |
 | `Components/Pages/` | Strony, formularze i obecna logika operacji na zgłoszeniach |
 | `Components/Pages/Login.razor`, `Components/Pages/Main/_Imports.razor` | Publiczne logowanie i wspólne wymaganie zalogowania dla stron w `Main`; strona błędu ma `[AllowAnonymous]` |
-| `Components/Pages/Main/AdminPanel.razor` | Formularz tworzenia konta przez administratora w static SSR; POST na `/admin`, walidacja i zapis przez Identity |
+| `Components/Pages/Main/AdminPanel.razor` | Lista kont i formularz tworzenia konta przez administratora w static SSR; odczyt przez fabrykę EF, POST na `/admin`, walidacja i zapis przez Identity |
 | `Components/Layout/`, `Components/App.razor`, `Components/Routes.razor` | Układ, dokument HTML i routing |
 | `Data/AppDbContext.cs` | Kontekst dziedziczący po `IdentityDbContext<ApplicationUser>`; model kont i ról Identity oraz zestawy zgłoszeń i komentarzy |
 | `Data/ApplicationUser.cs` | Encja konta dziedzicząca po `IdentityUser`, rozszerzona o `FirstName` i `LastName` |
@@ -222,6 +222,8 @@ Polecenie tworzy brakującą rolę `Admin`, konto i przypisanie do roli, po czym
 
 Po zalogowaniu administrator otwiera **Panel administratora → Utwórz użytkownika**. Podaje imię i nazwisko (każde wymagane, do 100 znaków), e-mail będący loginem oraz hasło i jego potwierdzenie. Dozwolone są polskie znaki, dwa imiona i nazwiska z łącznikiem. W tej wersji nie wysyłamy wiadomości, zaproszeń ani potwierdzeń e-mail. Nowe konto nie otrzymuje roli `Admin`; nie następuje też przełączenie sesji administratora na utworzone konto.
 
+Panel wyświetla wszystkie konta w tabeli z imieniem, nazwiskiem i loginem oraz podaje ich liczbę. Odczyt używa osobnego kontekstu z `IDbContextFactory`, `AsNoTracking` i projekcji do danych wiersza; nie pobiera hashy haseł ani znaczników zabezpieczeń. Kolejność wyznaczają nazwisko, imię i login. Po utworzeniu konta przekierowanie na GET odświeża tabelę. Błąd listy ma osobny komunikat z linkiem ponowienia, bez ukrywania formularza tworzenia konta. Na wąskim ekranie tabela przewija się poziomo. Dodanie listy nie wymaga migracji.
+
 `UserData` zbiera dane POST, a `UserManager.CreateAsync` weryfikuje reguły Identity, tworzy hash hasła i zapisuje `ApplicationUser`, w tym imię i nazwisko, przez istniejący magazyn EF do `AspNetUsers`. Struktura bazy wymaga migracji `AddUserNames`. Pola hasła są czyszczone po każdej obsłużonej próbie. Po sukcesie następuje przekierowanie na GET, aby odświeżenie nie ponawiało zapisu. Po błędzie krótki skrypt przeglądarkowy ponownie otwiera panel z komunikatem; pozostałe dane pozostają w formularzu, hasła trzeba wpisać ponownie.
 
 Przy tworzeniu pierwszego administratora domyślne imię i nazwisko to Admin Admin. Opcjonalne klucze `BootstrapAdmin:FirstName` i `BootstrapAdmin:LastName` pozwalają podać inne dane nowego administratora. Ponowne wykonanie bootstrapu nie nadpisuje danych już istniejącego konta.
@@ -261,6 +263,7 @@ Przy tworzeniu pierwszego administratora domyślne imię i nazwisko to Admin Adm
 | Ręczna próba formularza z SQL Server | Użytkownik potwierdził sprawdzenie scenariuszy i poprawne działanie formularza sprzed rozszerzenia o imię i nazwisko. Punkt TODO oznaczono jako wykonany. Własny ekran odmowy dostępu nadal pozostaje do przygotowania; obecny zakaz dostępu kieruje na domyślny adres Identity |
 | Imię i nazwisko — baza | Agent zastosował `AddUserNames` do `layZTicketsDb` i potwierdził typy oraz wymaganie nowych kolumn, dane Admin Admin i Jan Kowalski, 2 konta, 10 zgłoszeń i 13 komentarzy. Skrót wszystkich wcześniejszych pól użytkowników jest zgodny. Model zgodny ze snapshotem, build bez błędów i ostrzeżeń |
 | Imię i nazwisko — zachowanie | 51 izolowanych sprawdzeń HTTP z magazynem w pamięci: poprzednie reguły tworzenia kont oraz wymagane nazwy, limit 100 znaków, przycinanie spacji, dwa imiona, polskie znaki i nazwiska z łącznikiem, poprawna nazwa i inicjały po logowaniu oraz różne identyfikatory kont o identycznych nazwach. Agent nie wykonywał interaktywnego logowania do lokalnej aplikacji po tej zmianie |
+| Lista kont w panelu administratora | Build bez błędów i ostrzeżeń. 60 sprawdzeń HTTP z magazynem kont w pamięci i adapterem odczytu EF obejmuje wcześniejsze reguły oraz licznik, pustą listę, obsługę błędu odczytu, zachowanie formularza, odświeżenie listy po utworzeniu konta, sortowanie i brak hasła oraz hasha w tabeli. Osobne 12 sprawdzeń potwierdziło HTML listy obu istniejących kont z `layZTicketsDb` i zgodność kolejności; ten wariant używał kont testowych w pamięci do uwierzytelniania, a SQL wyłącznie do odczytu listy. Nie zmieniono schematu ani danych SQL i nie wykonano interaktywnej próby nowej tabeli w przeglądarce |
 | Pusta baza z aktualnymi siedmioma migracjami | Do sprawdzenia; dotychczasowy test pustej bazy obejmował dwie pierwsze migracje |
 | Testy automatyczne | Brak projektu testowego |
 

@@ -3,7 +3,9 @@
 @using layZTickets.Data
 @using layZTickets.DataSets
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
 @inject UserManager<ApplicationUser> UserManager
+@inject IDbContextFactory<AppDbContext> DbContextFactory
 @inject NavigationManager Navigation
 @inject ILogger<AdminPanel> Logger
 
@@ -21,6 +23,53 @@
 <button type="button" class="desk-primary-button" popovertarget="create-user-panel">
     Utwórz użytkownika
 </button>
+
+<section class="accounts-section desk-card" aria-labelledby="accounts-title">
+    <header class="accounts-header">
+        <h2 id="accounts-title">Konta użytkowników</h2>
+        @if (accountsErrorMessage is null)
+        {
+            <span class="desk-muted">Liczba kont: @accounts.Count</span>
+        }
+    </header>
+
+    @if (accountsErrorMessage is not null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @accountsErrorMessage
+            <a href="/admin">Spróbuj ponownie</a>
+        </div>
+    }
+    else if (accounts.Count == 0)
+    {
+        <p class="desk-muted">Nie utworzono jeszcze żadnego konta.</p>
+    }
+    else
+    {
+        <div class="accounts-table-scroll">
+            <table class="accounts-table">
+                <caption class="visually-hidden">Lista kont: imię, nazwisko i login.</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Imię</th>
+                        <th scope="col">Nazwisko</th>
+                        <th scope="col">Login / e-mail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var account in accounts)
+                    {
+                        <tr @key="account.Id">
+                            <td>@account.FirstName</td>
+                            <td>@account.LastName</td>
+                            <td>@account.Login</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
 
 <section id="create-user-panel" class="create-user-drawer" popover="auto" aria-labelledby="create-user-title"
          data-reopen="@(showCreateUserPanel ? "true" : "false")">
@@ -86,6 +135,8 @@
 @code {
     private string? errorMessage;
     private bool showCreateUserPanel;
+    private string? accountsErrorMessage;
+    private List<AccountListItem> accounts = new();
 
     [SupplyParameterFromForm(FormName = "create-user")]
     private UserData newUserData { get; set; } = new();
@@ -95,6 +146,35 @@
 
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpContext?.User.IsInRole("Admin") != true)
+        {
+            accountsErrorMessage = "Nie masz uprawnień do przeglądania kont.";
+            return;
+        }
+
+        try
+        {
+            await using var dbContext = await DbContextFactory.CreateDbContextAsync();
+
+            accounts = await dbContext.Users
+                .AsNoTracking()
+                .OrderBy(user => user.LastName)
+                .ThenBy(user => user.FirstName)
+                .ThenBy(user => user.UserName)
+                .Select(user => new AccountListItem(user.Id, user.FirstName, user.LastName, user.UserName ?? string.Empty))
+                .ToListAsync();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Błąd podczas pobierania listy kont.");
+            accountsErrorMessage = "Nie udało się pobrać listy kont. Spróbuj ponownie później.";
+        }
+    }
+
+    private sealed record AccountListItem(string Id, string FirstName, string LastName, string Login);
 
     private async Task CreateAccount(EditContext editContext)
     {
