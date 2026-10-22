@@ -1,0 +1,151 @@
+﻿@page "/admin"
+@attribute [Authorize(Roles = "Admin")]
+@using layZTickets.Data
+@using layZTickets.DataSets
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager Navigation
+@inject ILogger<AdminPanel> Logger
+
+<PageTitle>Panel administratora</PageTitle>
+
+<h1>Panel administratora</h1>
+
+@if (AccountCreated)
+{
+    <div class="alert alert-success" role="status">
+        Konto użytkownika zostało utworzone. Można zalogować się podanym adresem e-mail i hasłem.
+    </div>
+}
+
+<button type="button" class="desk-primary-button" popovertarget="create-user-panel">
+    Utwórz użytkownika
+</button>
+
+<section id="create-user-panel" class="create-user-drawer" popover="auto" aria-labelledby="create-user-title"
+         data-reopen="@(showCreateUserPanel ? "true" : "false")">
+
+    <button type="button" class="desk-secondary-button" popovertarget="create-user-panel" popovertargetaction="hide">
+        Zamknij
+    </button>
+
+    <h2 id="create-user-title">Utwórz użytkownika</h2>
+
+    <p>Adres e-mail będzie również loginem. Nowe konto nie otrzyma uprawnień administratora.</p>
+
+    <EditForm Model="newUserData" OnSubmit="CreateAccount" FormName="create-user" method="post" class="create-user-form">
+        <DataAnnotationsValidator />
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger" role="alert" tabindex="-1" data-form-feedback>
+                @errorMessage
+            </div>
+        }
+
+        <ValidationSummary />
+
+        <div>
+            <label for="new-user-email">Adres e-mail / login</label>
+            <InputText id="new-user-email" class="desk-input" type="email" autocomplete="off"
+                       @bind-Value="newUserData.Email" />
+        </div>
+
+        <div>
+            <label for="new-user-password">Hasło</label>
+            <InputText id="new-user-password" class="desk-input" type="password" autocomplete="new-password"
+                       @bind-Value="newUserData.Password" />
+            <p class="password-hint">
+                Minimum @UserManager.Options.Password.RequiredLength znaków, mała i wielka litera, cyfra oraz znak specjalny.
+            </p>
+        </div>
+
+        <div>
+            <label for="new-user-confirm-password">Powtórz hasło</label>
+            <InputText id="new-user-confirm-password" class="desk-input" type="password" autocomplete="new-password"
+                       @bind-Value="newUserData.ConfirmPassword" />
+        </div>
+
+        <button type="submit" class="desk-primary-button">Utwórz użytkownika</button>
+    </EditForm>
+</section>
+
+
+@code {
+    private string? errorMessage;
+    private bool showCreateUserPanel;
+
+    [SupplyParameterFromForm(FormName = "create-user")]
+    private UserData newUserData { get; set; } = new();
+
+    [SupplyParameterFromQuery(Name = "accountCreated")]
+    public bool AccountCreated { get; set; }
+
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private async Task CreateAccount(EditContext editContext)
+    {
+        errorMessage = null;
+        showCreateUserPanel = true;
+
+        try
+        {
+            // Kontrola operacji na serwerze oprócz ochrony całej strony.
+            if (HttpContext?.User.Identity?.IsAuthenticated != true || !HttpContext.User.IsInRole("Admin"))
+            {
+                errorMessage = "Nie masz uprawnień do tworzenia kont.";
+                return;
+            }
+
+            newUserData.Email = (newUserData.Email ?? string.Empty).Trim();
+
+            if (!editContext.Validate())
+            {
+                errorMessage = "Popraw dane formularza. Ze względów bezpieczeństwa wpisz hasło ponownie.";
+                return;
+            }
+
+            var user = new ApplicationUser
+            {
+                UserName = newUserData.Email,
+                Email = newUserData.Email
+            };
+
+            var result = await UserManager.CreateAsync(user, newUserData.Password);
+
+            if (!result.Succeeded)
+            {
+                errorMessage = string.Join(" ", result.Errors.Select(GetIdentityErrorMessage));
+                return;
+            }
+
+            // Nowe żądanie GET zapobiega ponownemu wysłaniu hasła po odświeżeniu strony.
+            Navigation.NavigateTo("/admin?accountCreated=true", forceLoad: true);
+        }
+        catch (Exception exception) when (exception is not NavigationException)
+        {
+            Logger.LogError(exception, "Błąd podczas tworzenia konta użytkownika.");
+            errorMessage = "Nie udało się utworzyć konta. Spróbuj ponownie później.";
+        }
+        finally
+        {
+            // Hasło nie powinno wracać w HTML odpowiedzi ani pozostawać w modelu formularza.
+            newUserData.Password = string.Empty;
+            newUserData.ConfirmPassword = string.Empty;
+        }
+    }
+
+    private string GetIdentityErrorMessage(IdentityError error) => error.Code switch
+    {
+        "DuplicateUserName" or "DuplicateEmail" => "Konto z tym adresem e-mail już istnieje.",
+        "InvalidEmail" or "InvalidUserName" => "Podaj prawidłowy adres e-mail jako login.",
+        "PasswordTooShort" => $"Hasło musi mieć co najmniej {UserManager.Options.Password.RequiredLength} znaków.",
+        "PasswordRequiresDigit" => "Hasło musi zawierać cyfrę.",
+        "PasswordRequiresLower" => "Hasło musi zawierać małą literę.",
+        "PasswordRequiresUpper" => "Hasło musi zawierać wielką literę.",
+        "PasswordRequiresNonAlphanumeric" => "Hasło musi zawierać znak specjalny.",
+        "PasswordRequiresUniqueChars" => $"Hasło musi zawierać co najmniej {UserManager.Options.Password.RequiredUniqueChars} różnych znaków.",
+        _ => "Nie udało się utworzyć konta z podanymi danymi."
+    };
+}

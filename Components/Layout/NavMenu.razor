@@ -12,6 +12,14 @@
             <span>Dashboard</span>
         </NavLink>
 
+        <AuthorizeView Roles="Admin">
+            <NavLink class="nav-link" href="admin">
+                <span class="material-symbols-outlined"
+                      aria-hidden="true">admin_panel_settings</span>
+                <span>Panel administratora</span>
+            </NavLink>
+        </AuthorizeView>
+
         <NavLink class="nav-link" href="DisplayTickets">
             <span class="material-symbols-outlined" aria-hidden="true">view_list</span>
             <span>Wszystkie Zgłoszenia</span>
@@ -32,7 +40,6 @@
                     </span>
                     <span>
                         <strong>@authState.User.Identity?.Name</strong>
-
                         <span class="sidebar-role">
                             @(authState.User.IsInRole("Admin") ? "Administrator" : "Użytkownik")
                         </span>

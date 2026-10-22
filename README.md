@@ -2,7 +2,7 @@
 
 Projekt aplikacji HelpDesk do portfolio pod stanowiska związane z C#. Rozwój projektu łączy ukończenie systemu zgłoszeń z praktyczną nauką frontendu, backendu, SQL, logowania i uprawnień.
 
-Docelowo aplikacja ma obsługiwać użytkownika zgłaszającego problem, agenta Service Desk i administratora. Obecna wersja jest prototypem bez logowania i kontroli dostępu.
+Docelowo aplikacja ma obsługiwać użytkownika zgłaszającego problem, agenta Service Desk i administratora. Obecna wersja ma logowanie i wylogowanie przez Identity, ochronę stron oraz panel tworzenia kont dostępny tylko administratorowi. Uprawnienia do konkretnych zgłoszeń i operacji pozostają do wdrożenia.
 
 [Zasady współpracy i nauki](AGENTS.md) · [Etapy rozwoju](ROADMAP.md) · [Lista TODO](TODO.md)
 
@@ -21,7 +21,7 @@ W trybie Interactive Server przeglądarka wyświetla interfejs i przekazuje inte
 
 ## Obecny stan
 
-Stan analizy i weryfikacji: **21 października 2026 r.** Poniższa tabela opisuje implementację w kodzie. Podstawowy scenariusz tworzenia, odczytu i komentowania oraz działanie kategorii po migracji zostały sprawdzone ręcznie przez użytkownika w jego lokalnym środowisku; zakres prób opisano w sekcji „Stan weryfikacji”.
+Stan analizy i weryfikacji: **22 października 2026 r.** Poniższa tabela opisuje implementację w kodzie. Podstawowe operacje na zgłoszeniach oraz logowanie, wylogowanie i ochronę stron sprawdził ręcznie użytkownik. Nowy formularz tworzenia kont sprawdzono przez HTTP z magazynem w pamięci; próby na SQL Server i w przeglądarce pozostają do wykonania. Szczegóły opisano w sekcji „Stan weryfikacji”.
 
 | Obszar | Stan w kodzie |
 | --- | --- |
@@ -34,9 +34,10 @@ Stan analizy i weryfikacji: **21 października 2026 r.** Poniższa tabela opisuj
 | Pozostałe przyciski w szczegółach | „Edytuj”, „Zmień status” i „Przypisz do mnie” nadal są nieaktywne. Status zmienia się listą; dwa pierwsze przyciski przeznaczono do usunięcia. Tekstowe przypisanie można podać przy tworzeniu |
 | Filtry, wyszukiwarka, paginacja | Elementy interfejsu bez zaimplementowanej logiki |
 | Załączniki | Makieta interfejsu, bez przesyłania i przechowywania plików |
-| Logowanie i role | Model i tabele Identity oraz usługi kont, ról, uwierzytelniania przez cookie i autoryzacji są skonfigurowane. Użytkownik potwierdził uruchomienie aplikacji; ostatni potwierdzony `UserCount = 0`. Pierwszego administratora, logowania, wylogowania i uprawnień do zgłoszeń jeszcze nie zaimplementowano. Dane profilu w układzie są przykładowe |
+| Logowanie i role | Pierwszego administratora tworzy jawne polecenie `--bootstrap-admin=true`; użytkownik potwierdził `UserCount = 1`. Działają formularz `/login`, POST `/logout`, ochrona stron w `Components/Pages/Main` oraz nazwa i opis roli zalogowanej osoby w menu. Pełne uprawnienia do zgłoszeń pozostają do wdrożenia |
+| Panel administratora | `/admin` wymaga roli `Admin`. Wysuwany formularz tworzy zwykłe konto przez `UserManager`, sprawdza e-mail, potwierdzenie hasła i reguły Identity. Lista kont jest planowana; `/profile` pozostaje pustą stroną ustawień |
 | Dashboard | Strona główna nadal zawiera treść szablonu |
-| Przykłady z szablonu | Pozostały strony Counter i Weather; licznik korzysta z serwisu zapisu JSON |
+| Przykłady z szablonu | Strony Counter i Weather usunięto; serwis zapisu JSON pozostaje w projekcie |
 
 ### Ograniczenia wymagające uwagi
 
@@ -44,7 +45,7 @@ Stan analizy i weryfikacji: **21 października 2026 r.** Poniższa tabela opisuj
 - Aplikacja wymaga bazy przygotowanej migracjami. Nie wykonuje ich automatycznie przy starcie ani podczas otwierania stron. Dotychczasowa baza utworzona przez `EnsureCreatedAsync` wymaga osobnego przygotowania historii migracji; zwykła aktualizacja nie rozpoznaje automatycznie istniejących tabel.
 - Numer `TicketNumber` jest właściwością C# z `[NotMapped]`. Wyszukiwanie numeru w zapytaniu EF powinno wykorzystywać odpowiadające mu `Id`; właściwość wyliczana nie jest kolumną SQL.
 - Pola nazwane `CreatedByUserId`, `AssignedAgentId` i `AuthorUserId` przechowują obecnie wpisywany tekst, bez powiązania z kontami.
-- Obsługa błędów stron wyświetla treść wyjątków. Nie ma projektu testów automatycznych.
+- Obsługa błędów stron zgłoszeń nadal wyświetla treść wyjątków. Logowanie i tworzenie kont pokazują przyjazny komunikat i zapisują wyjątek w logach. Nie ma stałego projektu testów automatycznych.
 - Zmiana statusu sprawdza wartość enuma, ale nie ogranicza przejść między statusami. Wybór tej samej wartości nadal aktualizuje datę; reguły i sprawdzenia pozostają w roadmapie. Błędy aktualizacji wyświetlane są przy listach, bez ukrywania szczegółów; błąd początkowego odczytu i brak rekordu mają osobny ekran.
 
 ## Struktura projektu
@@ -53,9 +54,12 @@ Stan analizy i weryfikacji: **21 października 2026 r.** Poniższa tabela opisuj
 | --- | --- |
 | `Program.cs` | Konfiguracja aplikacji, fabryki kontekstów EF, usług Identity, uwierzytelniania, autoryzacji i trybu renderowania |
 | `Components/Pages/` | Strony, formularze i obecna logika operacji na zgłoszeniach |
+| `Components/Pages/Login.razor`, `Components/Pages/Main/_Imports.razor` | Publiczne logowanie i wspólne wymaganie zalogowania dla stron w `Main`; strona błędu ma `[AllowAnonymous]` |
+| `Components/Pages/Main/AdminPanel.razor` | Formularz tworzenia konta przez administratora w static SSR; POST na `/admin`, walidacja i zapis przez Identity |
 | `Components/Layout/`, `Components/App.razor`, `Components/Routes.razor` | Układ, dokument HTML i routing |
 | `Data/AppDbContext.cs` | Kontekst dziedziczący po `IdentityDbContext<ApplicationUser>`; model kont i ról Identity oraz zestawy zgłoszeń i komentarzy |
 | `Data/ApplicationUser.cs` | Typ konta dziedziczący po `IdentityUser`; nie reprezentuje sam w sobie sesji zalogowanej osoby |
+| `DataSets/UserData.cs` | Model danych formularza: e-mail, hasło i potwierdzenie hasła; nie jest encją EF ani nową tabelą |
 | `DataSets/` | Modele `TicketData` i `TicketComment` oraz enumy `TicketCategory`, `TicketStatus` i `TicketPriority` |
 | `Migrations/` | Zmiany struktury bazy, metadane migracji i snapshot modelu, czyli jego zapis do porównania przy kolejnych zmianach |
 | `dotnet-tools.json` | Manifest lokalnego narzędzia `dotnet-ef` w wersji 8.0.27 |
@@ -65,7 +69,7 @@ Stan analizy i weryfikacji: **21 października 2026 r.** Poniższa tabela opisuj
 
 ### Droga od formularza do bazy
 
-1. Użytkownik uzupełnia formularz w `Components/Pages/CreateTicket.razor`. `@bind-Value` wiąże pola z obiektem `ticketDraft`.
+1. Użytkownik uzupełnia formularz w `Components/Pages/Main/CreateTicket.razor`. `@bind-Value` wiąże pola z obiektem `ticketDraft`.
 2. Wysłanie `EditForm` uruchamia na serwerze `CreateTicketAsync`. Metoda sprawdza tytuł, opis i zgłaszającego oraz ustawia wartości początkowe.
 3. Wstrzyknięta przez DI fabryka `IDbContextFactory<AppDbContext>` tworzy kontekst do operacji na bazie. Rejestracja fabryki znajduje się w `Program.cs`.
 4. Kontekst korzysta ze struktury przygotowanej wcześniej migracjami. Komponent nie tworzy tabel ani nie wykonuje ręcznego SQL poprawiającego schemat lub numery istniejących zgłoszeń.
@@ -199,11 +203,25 @@ Po skonfigurowaniu bazy i certyfikatu:
 dotnet run --project layZTickets.csproj --launch-profile https
 ```
 
-Profil `https` określa adresy `https://localhost:7261` i `http://localhost:5269`; aplikacja ma włączone przekierowanie HTTPS. Otwórz [listę zgłoszeń](https://localhost:7261/DisplayTickets) lub [formularz tworzenia](https://localhost:7261/CreateTicket). Strona `/` jest nadal stroną szablonową. Zatrzymanie aplikacji: `Ctrl+C`.
+Profil `https` określa adresy `https://localhost:7261` i `http://localhost:5269`; aplikacja ma włączone przekierowanie HTTPS. Otwórz [logowanie](https://localhost:7261/login). Po zalogowaniu dostępne są lista zgłoszeń i formularz tworzenia. Strona `/` jest nadal stroną szablonową. Zatrzymanie aplikacji: `Ctrl+C`.
+
+### Pierwszy administrator i kolejne konta
+
+W środowisku Development podaj `BootstrapAdmin:Email` i `BootstrapAdmin:Password` przez User Secrets, poza repozytorium. Następnie uruchom jednorazowo:
+
+```powershell
+dotnet run --project layZTickets.csproj --launch-profile https -- --bootstrap-admin=true
+```
+
+Polecenie tworzy brakującą rolę `Admin`, konto i przypisanie do roli, po czym kończy proces. Nie zmienia hasła już istniejącego konta. Zwykłe uruchomienie aplikacji nie odtwarza administratora. Hasło musi spełniać aktualne reguły Identity; obecne ustawienia wymagają minimum 6 znaków, małej i wielkiej litery, cyfry oraz znaku specjalnego. Po konfiguracji można usunąć `BootstrapAdmin:Password` z User Secrets.
+
+Po zalogowaniu administrator otwiera **Panel administratora → Utwórz użytkownika**. Adres e-mail jest loginem, administrator ustawia hasło i potwierdza je drugim polem. W tej wersji nie wysyłamy wiadomości, zaproszeń ani potwierdzeń e-mail. Nowe konto nie otrzymuje roli `Admin`; nie następuje też przełączenie sesji administratora na utworzone konto.
+
+`UserData` zbiera dane POST, a `UserManager.CreateAsync` weryfikuje reguły Identity, tworzy hash hasła i zapisuje `ApplicationUser` przez istniejący magazyn EF do `AspNetUsers`. Nie potrzeba nowej migracji. Pola hasła są czyszczone po każdej obsłużonej próbie. Po sukcesie następuje przekierowanie na GET, aby odświeżenie nie ponawiało zapisu. Po błędzie krótki skrypt przeglądarkowy ponownie otwiera panel z komunikatem; e-mail pozostaje w formularzu, hasła trzeba wpisać ponownie.
 
 ### Stan weryfikacji
 
-| Sprawdzenie | Wynik na 21.10.2026 |
+| Sprawdzenie | Wynik na 22.10.2026; wcześniejsze próby zachowują opis swojego zakresu |
 | --- | --- |
 | `dotnet build layZTickets.sln --no-restore -v minimal` | Sukces, 0 błędów, 0 ostrzeżeń; użyto już dostępnych pakietów |
 | Przywrócenie pakietów w nowym środowisku | Niezweryfikowane |
@@ -229,6 +247,9 @@ Profil `https` określa adresy `https://localhost:7261` i `http://localhost:5269
 | Przygotowanie migracji Identity | Agent wygenerował `20261021150554_AddIdentitySchema`, przejrzał `Up()` i `Down()` oraz wygenerowany SQL: wyłącznie siedem tabel Identity z relacjami i indeksami, bez zmian `Tickets` i `TicketComments`. Kompilacja: 0 błędów i ostrzeżeń; model zgodny ze snapshotem. Nie łączono się z bazą ani nie stosowano tej migracji |
 | Zastosowanie migracji Identity | Użytkownik zastosował migrację i potwierdził sześć migracji bez `Pending`, siedem tabel `AspNet...` i `UserCount = 0`. Agent nie wykonywał niezależnego sprawdzenia bazy. Odczyt listy i szczegółów zgłoszeń po tej migracji oraz porównanie liczby zgłoszeń i komentarzy pozostają do potwierdzenia |
 | Konfiguracja usług Identity | Agent sprawdził w `Program.cs` rejestrację kont, ról, magazynów EF, autoryzacji i stanu uwierzytelnienia dla Blazora oraz kolejność `UseAuthentication`, `UseAuthorization` i `UseAntiforgery`. Użytkownik potwierdził poprawne uruchomienie aplikacji. Nie wykonywano jeszcze prób tworzenia kont, logowania, wylogowania ani egzekwowania uprawnień do zgłoszeń |
+| Konta i sesja — 22.10.2026 | Użytkownik potwierdził utworzenie administratora (`UserCount = 1`), działanie logowania, wylogowania oraz brak dostępu do chronionych stron po wylogowaniu także przez bezpośredni adres. Menu korzysta z rzeczywistej nazwy i roli konta |
+| Tworzenie kont w panelu administratora — 22.10.2026 | Build: 0 błędów i ostrzeżeń. Izolowane próby HTTP skompilowanych stron z rzeczywistym Identity i testowym magazynem w pamięci: 40 sprawdzeń, w tym wymagane pola, e-mail, różne hasła, polityka hasła, duplikat bez rozróżniania wielkości liter, hash, logowanie nowego konta, zachowanie sesji administratora, brak nadania roli z dodatkowych pól POST, brak hasła w HTML, brak ponownego zapisu po odświeżeniu, obsługa błędu magazynu, odrzucenie POST bez tokena oraz odczytu i zapisu osoby niezalogowanej i zwykłego użytkownika. Nie korzystano z SQL Server ani istniejących sekretów |
+| Ręczna próba nowego formularza z SQL Server | Do wykonania: utworzenie konta, logowanie na nie, duplikat i błędne dane, odmowa dostępu do `/admin` dla zwykłego konta, otwieranie panelu po błędzie w przeglądarce. Lista kont i pełna macierz uprawnień nie są wdrożone. Odmowa dostępu zalogowanej osobie kieruje obecnie na domyślny adres Identity; własny ekran braku uprawnień pozostaje do przygotowania |
 | Pusta baza z aktualnymi sześcioma migracjami | Do sprawdzenia; dotychczasowy test pustej bazy obejmował dwie pierwsze migracje |
 | Testy automatyczne | Brak projektu testowego |
 

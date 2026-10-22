@@ -1,6 +1,6 @@
 # TODO — layZTickets
 
-Krótka lista do odhaczania zamiast osobnego narzędzia do zadań. Stan na zakończenie sesji 21.10.2026: model i tabele Identity oraz konfiguracja usług są gotowe, użytkownik potwierdził uruchomienie aplikacji. Kolejna sesja planowana na 22.10.2026; rozpoczynamy od pierwszego administratora i logowania.
+Krótka lista do odhaczania zamiast osobnego narzędzia do zadań. Stan na 22.10.2026: pierwszy administrator, logowanie, wylogowanie, ochrona stron i tożsamość w menu są zaimplementowane. Formularz tworzenia kont przez administratora jest gotowy w kodzie i przeszedł izolowane próby HTTP; pozostaje sprawdzenie z SQL Server i w przeglądarce.
 
 Pracujemy nad jednym punktem naraz. Zaznacz `[x]` dopiero po sprawdzeniu opisanego efektu. Szczegółowe kryteria etapów i ich statusy są w [ROADMAP.md](ROADMAP.md).
 
@@ -8,17 +8,17 @@ Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek
 
 ## Teraz
 
-- [ ] **Identity: pierwsze konto, logowanie i wylogowanie** — etap 4a roadmapy
+- [ ] **Tworzenie kolejnych kont przez administratora — próba z SQL Server** — etap 4a
 
-  Ustalono: wszystkie konta tworzy administrator; bez publicznej rejestracji. Ustalić dane konta, sposób pierwszego ustawienia hasła i potwierdzanie e-maila. Dodać Identity do obecnego .NET 8 i SQL Server oraz migrację. Przygotować jednorazowe lokalne utworzenie pierwszego administratora z danymi dostępowymi spoza repozytorium, następnie logowanie, wylogowanie i rzeczywistą tożsamość w układzie. Pierwszy efekt: administrator może się zalogować, odświeżyć stronę i wylogować.
+  Formularz w wysuwanym panelu `/admin` jest zaimplementowany: `UserData`, walidacja, `UserManager.CreateAsync`, polskie komunikaty, ochrona roli `Admin`, czyszczenie haseł i przekierowanie po sukcesie. Nowe konto jest zwykłym kontem, a sesja administratora pozostaje bez zmian. Ustalono e-mail jako login, ręczne ustawienie hasła przez administratora i brak wysyłania zaproszeń oraz potwierdzania e-maila w tej wersji. Nie ma publicznej rejestracji.
 
-  Na kolejną sesję: ustalić dane logowania pierwszego administratora i sposób ich podania poza repozytorium, np. przez User Secrets. Przygotować jednorazowe, jawnie uruchamiane tworzenie roli administratora i konta przez usługi Identity; bez publicznej rejestracji, stałego hasła w kodzie i automatycznego tworzenia konta przy każdym starcie. Następnie dodać logowanie i wylogowanie zgodne z Blazor Interactive Server oraz wyświetlić rzeczywistą tożsamość w układzie. Model, migracja i konfiguracja usług są już gotowe; odczyt zgłoszeń i zachowanie danych po migracji pozostają do potwierdzenia.
-
-- [ ] **Tworzenie kolejnych kont przez administratora** — etap 4a
-
-  Dodać formularz tworzenia kont oraz rolę administratora i ochronę operacji na serwerze. Sprawdzić utworzenie użytkownika i jego logowanie, błędne hasło, duplikat konta oraz zakaz tworzenia kont dla osoby niezalogowanej i zwykłego użytkownika, również przy bezpośrednim wywołaniu operacji. Nie udostępniać publicznej rejestracji. Pełne uprawnienia do zgłoszeń pozostają osobnym zadaniem.
+  Build: 0 błędów i ostrzeżeń. W izolowanych próbach HTTP skompilowanych stron z Identity i magazynem w pamięci przeszło 40 sprawdzeń, w tym tworzenie i logowanie, duplikat, błędne dane, awaria magazynu, brak wycieku hasła w HTML, token formularza i zakaz odczytu/zapisu dla osoby niezalogowanej oraz zwykłego użytkownika. Teraz sprawdzić te scenariusze w lokalnej aplikacji z SQL Server i ponowne otwieranie panelu po błędzie w przeglądarce. Dodać własny ekran odmowy dostępu zamiast domyślnego adresu Identity. Etap 4a pozostaje w toku.
 
 ## Następne sesje
+
+- [ ] **Lista kont w panelu administratora** — etap 4a
+
+  Wyświetlić utworzone konta w tym samym panelu, zgodnie z ustalonym układem. Nie wyświetlać haseł ani ich hashy. Rozbudowa pustego „Mojego profilu”, w tym zmiana loginu i hasła, pozostaje na później.
 
 - [ ] **Autor zgłoszenia i komentarza z zalogowanego konta** — etap 4b
 
@@ -45,6 +45,10 @@ Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek
   Sprawdzić utworzenie osobnej pustej bazy z aktualnych sześciu migracji, w tym kolumny `Category`, liczbowych kolumn `Status` i `Priority` oraz tabel Identity. Wcześniejsza próba obejmowała tylko dwie pierwsze migracje.
 
 ## Wykonane
+
+- [x] **Pierwszy administrator, logowanie, wylogowanie i ochrona stron** — 22.10.2026 · etap 4a
+
+  `AdminAccountSetup` uruchamia się tylko po jawnym `--bootstrap-admin=true`, z danymi spoza repozytorium. Użytkownik potwierdził utworzenie konta i `UserCount = 1`, następnie logowanie, wylogowanie i przekierowania po bezpośrednim wejściu na chronione adresy. Menu pokazuje nazwę i opis roli z tożsamości. Strony w `Main` wymagają zalogowania, `/admin` dodatkowo roli `Admin`; `/login` i strona błędu pozostają publiczne. Pozostała weryfikacja nowego formularza i uprawnień jest opisana powyżej; nie oznaczamy całego etapu 4 jako ukończonego.
 
 - [x] **Identity — pakiet i model EF** — etap 4a
 
