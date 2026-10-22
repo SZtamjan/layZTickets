@@ -1,18 +1,12 @@
 # TODO — layZTickets
 
-Krótka lista do odhaczania zamiast osobnego narzędzia do zadań. Stan na 22.10.2026: tworzenie kont, imię i nazwisko oraz lista kont w panelu administratora są zaimplementowane. Lista przeszła kompilację, izolowane próby HTTP i odczyt istniejących kont z SQL Server. Z etapu 4a pozostaje własny ekran odmowy dostępu; pełne uprawnienia do zgłoszeń należą do dalszych części roadmapy.
+Krótka lista do odhaczania zamiast osobnego narzędzia do zadań. Stan na 22.10.2026: etap 4a jest ukończony — konta, sesja, imię i nazwisko, lista kont oraz własny ekran odmowy dostępu są zaimplementowane i sprawdzone w opisanym poniżej zakresie. Pełne uprawnienia do zgłoszeń należą do dalszych części roadmapy; cały etap 4 pozostaje w toku.
 
 Pracujemy nad jednym punktem naraz. Zaznacz `[x]` dopiero po sprawdzeniu opisanego efektu. Szczegółowe kryteria etapów i ich statusy są w [ROADMAP.md](ROADMAP.md).
 
 Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek. Status i priorytet zmieniamy osobnymi listami rozwijanymi, a wybór od razu uruchamia zapis w bazie przez kod serwera. Po dodaniu kont „Przypisz do mnie” zapisze zalogowaną osobę po jednym kliknięciu.
 
 ## Teraz
-
-- [ ] **Własny ekran odmowy dostępu** — etap 4a
-
-  Odmowa wejścia zwykłego użytkownika na `/admin` działa, ale prowadzi na domyślny adres Identity. Przygotować własną stronę i ustawić `AccessDeniedPath`. Cały etap 4 pozostaje w toku.
-
-## Następne sesje
 
 - [ ] **Autor zgłoszenia i komentarza z zalogowanego konta** — etap 4b
 
@@ -39,6 +33,10 @@ Aktualny zakres: bez edycji treści wysłanego zgłoszenia, komentarzy i notatek
   Sprawdzić utworzenie osobnej pustej bazy z aktualnych siedmiu migracji, w tym kategorii, liczbowych statusów i priorytetów oraz tabel Identity z imieniem i nazwiskiem. Wcześniejsza próba obejmowała tylko dwie pierwsze migracje.
 
 ## Wykonane
+
+- [x] **Własny ekran odmowy dostępu** — 22.10.2026 · etap 4a
+
+  `AccessDeniedPath` wskazuje `/access-denied`. Zalogowana osoba bez roli `Admin` trafia tam po odmowie GET i POST na `/admin`. Strona zwraca HTTP 403, pokazuje komunikat i link do strony głównej. Dziedziczy samo `[Authorize]`, dzięki czemu nie wymaga roli administratora i nie powoduje pętli przekierowań. Osoba niezalogowana nadal trafia na `/login`. Build bez błędów i ostrzeżeń; 66 izolowanych sprawdzeń HTTP potwierdziło wcześniejsze funkcje oraz nową ścieżkę odmowy, treść 403, brak formularza i listy administratora, powrót do strony głównej oraz brak przekierowania pod zewnętrzny `ReturnUrl`. Bazy i schematu nie zmieniano; nie wykonano interaktywnej próby nowego ekranu w przeglądarce.
 
 - [x] **Lista kont w panelu administratora** — 22.10.2026 · etap 4a
 

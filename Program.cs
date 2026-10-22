@@ -29,6 +29,7 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/login";
+    options.AccessDeniedPath = "/access-denied";
 });
 
 var app = builder.Build();

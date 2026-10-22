@@ -36,6 +36,7 @@ Stan analizy i weryfikacji: **22 października 2026 r.** Podstawowe operacje na 
 | Załączniki | Makieta interfejsu, bez przesyłania i przechowywania plików |
 | Logowanie i role | Pierwszego administratora tworzy jawne polecenie `--bootstrap-admin=true`; użytkownik potwierdził `UserCount = 1`. Działają formularz `/login`, POST `/logout`, ochrona stron w `Components/Pages/Main` oraz nazwa i opis roli zalogowanej osoby w menu. Pełne uprawnienia do zgłoszeń pozostają do wdrożenia |
 | Panel administratora | `/admin` wymaga roli `Admin`. Pokazuje liczbę kont i tabelę: imię, nazwisko, login; sortuje po nazwisku, imieniu i loginie. Wysuwany formularz tworzy zwykłe konto przez `UserManager`. `/profile` pozostaje pustą stroną ustawień |
+| Odmowa dostępu | Niezalogowana osoba trafia na `/login`. Zalogowana osoba bez wymaganej roli trafia na `/access-denied`, gdzie otrzymuje komunikat, link do strony głównej i odpowiedź HTTP 403 |
 | Nazwa osoby | `FirstName` i `LastName` przechowywane osobno, po maksymalnie 100 znaków. Menu odczytuje je z tożsamości logowania i wylicza inicjały. Powiązania zgłoszeń z kontami będą korzystać z `Id`, a nie z imienia i nazwiska |
 | Dashboard | Strona główna nadal zawiera treść szablonu |
 | Przykłady z szablonu | Strony Counter i Weather usunięto; serwis zapisu JSON pozostaje w projekcie |
@@ -57,6 +58,7 @@ Stan analizy i weryfikacji: **22 października 2026 r.** Podstawowe operacje na 
 | `Components/Pages/` | Strony, formularze i obecna logika operacji na zgłoszeniach |
 | `Components/Pages/Login.razor`, `Components/Pages/Main/_Imports.razor` | Publiczne logowanie i wspólne wymaganie zalogowania dla stron w `Main`; strona błędu ma `[AllowAnonymous]` |
 | `Components/Pages/Main/AdminPanel.razor` | Lista kont i formularz tworzenia konta przez administratora w static SSR; odczyt przez fabrykę EF, POST na `/admin`, walidacja i zapis przez Identity |
+| `Components/Pages/Main/AccessDenied.razor` | Ekran odmowy dla zalogowanej osoby, z odpowiedzią HTTP 403; adres ustawiony przez `AccessDeniedPath` w `Program.cs` |
 | `Components/Layout/`, `Components/App.razor`, `Components/Routes.razor` | Układ, dokument HTML i routing |
 | `Data/AppDbContext.cs` | Kontekst dziedziczący po `IdentityDbContext<ApplicationUser>`; model kont i ról Identity oraz zestawy zgłoszeń i komentarzy |
 | `Data/ApplicationUser.cs` | Encja konta dziedzicząca po `IdentityUser`, rozszerzona o `FirstName` i `LastName` |
@@ -230,6 +232,10 @@ Przy tworzeniu pierwszego administratora domyślne imię i nazwisko to Admin Adm
 
 `ApplicationUserClaimsPrincipalFactory` dodaje `ClaimTypes.GivenName` i `ClaimTypes.Surname` do tożsamości zapisywanej w cookie. Menu wyświetla je zamiast e-maila, a login nadal pozostaje adresem e-mail. **Po aktualizacji wyloguj się i zaloguj ponownie**, aby odtworzyć cookie z nowymi danymi. Starsze cookie zachowuje dotychczasowy widok z adresem e-mail. Zmiana danych profilu i automatyczne odświeżanie tych informacji będą osobnym zadaniem.
 
+### Wymaganie roli i ekran odmowy
+
+`[Authorize(Roles = "Admin")]` na stronie panelu określa, kto ma dostęp. `ConfigureApplicationCookie` wskazuje osobno `LoginPath = "/login"` dla osoby niezalogowanej oraz `AccessDeniedPath = "/access-denied"` dla zalogowanej osoby bez wymaganej roli. Ekran odmowy dziedziczy z folderu `Main` samo wymaganie zalogowania, pokazuje komunikat oraz link do strony głównej i ustawia kod HTTP 403. Nie wymaga roli `Admin`, więc zwykły użytkownik może zobaczyć powód odmowy. Parametr `ReturnUrl` nie jest używany do przekierowywania z tej strony. Ta zmiana nie wymaga migracji ani dostępu do bazy.
+
 ### Stan weryfikacji
 
 | Sprawdzenie | Wynik na 22.10.2026; wcześniejsze próby zachowują opis swojego zakresu |
@@ -260,10 +266,11 @@ Przy tworzeniu pierwszego administratora domyślne imię i nazwisko to Admin Adm
 | Konfiguracja usług Identity | Agent sprawdził w `Program.cs` rejestrację kont, ról, magazynów EF, autoryzacji i stanu uwierzytelnienia dla Blazora oraz kolejność `UseAuthentication`, `UseAuthorization` i `UseAntiforgery`. Użytkownik potwierdził poprawne uruchomienie aplikacji. Nie wykonywano jeszcze prób tworzenia kont, logowania, wylogowania ani egzekwowania uprawnień do zgłoszeń |
 | Konta i sesja — 22.10.2026 | Użytkownik potwierdził utworzenie administratora (`UserCount = 1`), działanie logowania, wylogowania oraz brak dostępu do chronionych stron po wylogowaniu także przez bezpośredni adres. Menu korzysta z rzeczywistej nazwy i roli konta |
 | Tworzenie kont w panelu administratora — 22.10.2026 | Build: 0 błędów i ostrzeżeń. Izolowane próby HTTP skompilowanych stron z rzeczywistym Identity i testowym magazynem w pamięci: 40 sprawdzeń, w tym wymagane pola, e-mail, różne hasła, polityka hasła, duplikat bez rozróżniania wielkości liter, hash, logowanie nowego konta, zachowanie sesji administratora, brak nadania roli z dodatkowych pól POST, brak hasła w HTML, brak ponownego zapisu po odświeżeniu, obsługa błędu magazynu, odrzucenie POST bez tokena oraz odczytu i zapisu osoby niezalogowanej i zwykłego użytkownika. Nie korzystano z SQL Server ani istniejących sekretów |
-| Ręczna próba formularza z SQL Server | Użytkownik potwierdził sprawdzenie scenariuszy i poprawne działanie formularza sprzed rozszerzenia o imię i nazwisko. Punkt TODO oznaczono jako wykonany. Własny ekran odmowy dostępu nadal pozostaje do przygotowania; obecny zakaz dostępu kieruje na domyślny adres Identity |
+| Ręczna próba formularza z SQL Server | Użytkownik potwierdził sprawdzenie scenariuszy i poprawne działanie formularza sprzed rozszerzenia o imię i nazwisko. Punkt TODO oznaczono jako wykonany. Własny ekran odmowy został później dodany i sprawdzony przez HTTP w zakresie opisanym poniżej |
 | Imię i nazwisko — baza | Agent zastosował `AddUserNames` do `layZTicketsDb` i potwierdził typy oraz wymaganie nowych kolumn, dane Admin Admin i Jan Kowalski, 2 konta, 10 zgłoszeń i 13 komentarzy. Skrót wszystkich wcześniejszych pól użytkowników jest zgodny. Model zgodny ze snapshotem, build bez błędów i ostrzeżeń |
 | Imię i nazwisko — zachowanie | 51 izolowanych sprawdzeń HTTP z magazynem w pamięci: poprzednie reguły tworzenia kont oraz wymagane nazwy, limit 100 znaków, przycinanie spacji, dwa imiona, polskie znaki i nazwiska z łącznikiem, poprawna nazwa i inicjały po logowaniu oraz różne identyfikatory kont o identycznych nazwach. Agent nie wykonywał interaktywnego logowania do lokalnej aplikacji po tej zmianie |
 | Lista kont w panelu administratora | Build bez błędów i ostrzeżeń. 60 sprawdzeń HTTP z magazynem kont w pamięci i adapterem odczytu EF obejmuje wcześniejsze reguły oraz licznik, pustą listę, obsługę błędu odczytu, zachowanie formularza, odświeżenie listy po utworzeniu konta, sortowanie i brak hasła oraz hasha w tabeli. Osobne 12 sprawdzeń potwierdziło HTML listy obu istniejących kont z `layZTicketsDb` i zgodność kolejności; ten wariant używał kont testowych w pamięci do uwierzytelniania, a SQL wyłącznie do odczytu listy. Nie zmieniono schematu ani danych SQL i nie wykonano interaktywnej próby nowej tabeli w przeglądarce |
+| Ekran odmowy dostępu | Build bez błędów i ostrzeżeń. 66 izolowanych sprawdzeń HTTP z rzeczywistym Identity i danymi w pamięci: wcześniejsze funkcje oraz przekierowanie zwykłego konta z GET i POST `/admin` na własny ekran, odpowiedź 403 z komunikatem bez danych panelu administratora, działający powrót do strony głównej, skierowanie osoby niezalogowanej na login i brak przekierowania na zewnętrzny `ReturnUrl`. Nie korzystano z SQL Server ani nie wykonano interaktywnej próby nowego ekranu w przeglądarce |
 | Pusta baza z aktualnymi siedmioma migracjami | Do sprawdzenia; dotychczasowy test pustej bazy obejmował dwie pierwsze migracje |
 | Testy automatyczne | Brak projektu testowego |
 

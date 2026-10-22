@@ -10,7 +10,7 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 - Status aktualizujemy po faktycznej pracy i sprawdzeniach. Ukończenie wymaga spełnienia kryteriów funkcjonalnych i omówienia użytych mechanizmów z użytkownikiem, bez obowiązkowego egzaminu.
 - Szczegółowe wymagania funkcji ustalamy przed ich wdrażaniem. Ta roadmapa nie rozstrzyga jeszcze macierzy uprawnień, reguł przejść statusów ani polityki załączników.
 - Zakres obsługi zgłoszeń: treść wysłanego zgłoszenia, komentarzy i notatek pozostaje bez edycji. Status i priorytet są zmieniane osobnymi listami rozwijanymi w szczegółach, z zapisem po wyborze, bez osobnego przycisku zapisu. Po wdrożeniu kont „Przypisz do mnie” od razu zapisze przypisanie do zalogowanej osoby; przypisywanie jest nadal planowaną funkcją.
-- Stan na 22.10.2026. Etap 1 jest ukończony w zakresie istniejącego środowiska. W etapie 2 pozostała próba pustej bazy z siedmiu migracji, a w etapie 3 reguły, sprawdzenia i porządki opisane poniżej. W etapie 4a użytkownik potwierdził tworzenie kont z SQL Server i w przeglądarce. Dodano imię i nazwisko oraz listę kont w panelu administratora; wykonano migrację nazw, kompilację, izolowane próby HTTP i odczyt listy z SQL. Pozostaje własny ekran odmowy dostępu. Odtworzenie całego środowiska na czystym komputerze pozostaje do weryfikacji.
+- Stan na 22.10.2026. Etap 1 jest ukończony w zakresie istniejącego środowiska. W etapie 2 pozostała próba pustej bazy z siedmiu migracji, a w etapie 3 reguły, sprawdzenia i porządki opisane poniżej. Etap 4a jest ukończony: konta, sesja, imię i nazwisko, lista kont i ekran odmowy są zaimplementowane i sprawdzone w opisanym poniżej zakresie. Następny zakres to 4b — powiązanie autorów z kontami; cały etap 4 pozostaje w toku. Odtworzenie całego środowiska na czystym komputerze pozostaje do weryfikacji.
 
 ## 1. Poznanie i uruchomienie istniejącej aplikacji
 
@@ -89,7 +89,7 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 ## 4. Konta, role i granice dostępu
 
-**Status:** w toku — model i tabele Identity, administrator, logowanie, wylogowanie, tożsamość w menu, ochrona stron, tworzenie kont i ich lista są zaimplementowane. Użytkownik potwierdził próby formularza z SQL Server. Rozszerzenie nazw i lista kont zostały sprawdzone kompilacją, odczytem SQL oraz izolowanymi próbami HTTP. Pozostają własny ekran odmowy dostępu i dalsze części etapu z uprawnieniami do zgłoszeń oraz operacji.
+**Status:** w toku — część 4a jest ukończona: konta, logowanie i wylogowanie, tożsamość, ochrona stron, tworzenie i lista kont oraz ekran odmowy. Użytkownik potwierdził próby formularza z SQL Server; późniejsze rozszerzenia sprawdzono kompilacją, odczytem SQL i izolowanymi próbami HTTP. Pozostają części 4b i 4c z autorami powiązanymi z kontami oraz uprawnieniami do zgłoszeń i operacji.
 
 **Efekt:** logowanie i wylogowanie oraz egzekwowane na serwerze uprawnienia ról użytkownika, agenta SD i administratora.
 
@@ -115,17 +115,19 @@ Celem jest ukończony projekt HelpDesk do portfolio oraz zrozumienie jego dział
 
 **Lista kont — wykonano:** panel `/admin` pokazuje wszystkie konta: imię, nazwisko i login, sortowane po nazwisku, imieniu i loginie, oraz liczbę rekordów. Krótko żyjący kontekst z fabryki EF pobiera tylko pola potrzebne do tabeli. Po utworzeniu konta istniejące przekierowanie na GET odświeża listę. Osobna obsługa błędu odczytu nie ukrywa formularza. Nie potrzeba migracji. Build bez błędów i ostrzeżeń, 60 sprawdzeń HTTP z danymi w pamięci (w tym stan pusty, błąd listy, nowy rekord po utworzeniu i odmowa dostępu) oraz 12 sprawdzeń wariantu z odczytem istniejących kont SQL. W wariancie SQL uwierzytelnianie korzystało z danych testowych w pamięci, a baza wyłącznie z odczytu listy. Wyniki dotyczą HTML serwera, bez interaktywnej próby nowej tabeli w przeglądarce.
 
-**Najbliższy krok:** przygotować własny ekran odmowy dostępu zamiast domyślnego adresu Identity. Pełna macierz ról i dostęp do rekordów nadal należą do dalszych części etapu 4.
+**Ekran odmowy — wykonano:** `AccessDeniedPath` wskazuje własną stronę `/access-denied`. Strona wymaga zalogowania, ale nie roli `Admin`; zwraca 403, pokazuje komunikat i pozwala wrócić do strony głównej. Osoba niezalogowana nadal trafia na `/login`. Ochronę panelu nadal zapewnia `[Authorize(Roles = "Admin")]`. Build bez błędów i ostrzeżeń oraz 66 izolowanych sprawdzeń HTTP potwierdziły wcześniejsze funkcje i przekierowanie zwykłego użytkownika po zabronionym GET i POST, treść 403 bez danych panelu, powrót do strony głównej i brak zewnętrznego przekierowania z `ReturnUrl`. Nie zmieniano bazy i nie wykonywano interaktywnej próby nowego ekranu w przeglądarce.
+
+**Najbliższy krok:** etap 4b — ustalić los dotychczasowych tekstowych autorów i przypisań, a następnie powiązać autorów nowych zgłoszeń i komentarzy z kontami. Pełna macierz ról i dostęp do rekordów należą do części 4c.
 
 **Praca:** konta tworzy wyłącznie administrator; nie udostępniamy publicznej rejestracji ani publicznej operacji tworzenia kont. Przed implementacją ustalić szczegóły zakładania kont, a następnie macierz uprawnień do zgłoszeń. Powiązać autorów i przypisania z kontami, ustalając los dotychczasowych tekstowych danych. Zaimplementować przydzielanie zgłoszeń zgodnie z macierzą. Kliknięcie „Przypisz do mnie” od razu uruchamia zapis przypisania w bazie; serwer ustala identyfikator zalogowanej osoby i sprawdza jej uprawnienia. Ustalić zasady przejęcia już przypisanego zgłoszenia i aktualizacji daty. Chronić notatki wewnętrzne także przy pobieraniu danych. Objąć uprawnieniami również zmianę statusu i priorytetu.
 
-**4a. Konta i sesja logowania — najbliższy mały etap:**
+**4a. Konta i sesja logowania — ukończony 22.10.2026:**
 
 1. Ustalono: wszystkie konta tworzy administrator, bez publicznej rejestracji. Wymagamy imienia i nazwiska, e-mail jest loginem, administrator ręcznie ustawia hasło. Wysyłanie zaproszeń, potwierdzanie e-maila oraz rozbudowa profilu o zmianę loginu i hasła pozostają poza bieżącym zakresem.
 2. Dodać ASP.NET Core Identity do istniejącego projektu .NET 8 i SQL Server. Identity zapewnia obsługę użytkowników i haseł; zaplanować integrację z kontekstem EF oraz migrację tabel kont. Przed zastosowaniem sprawdzić bazę docelową i zachowanie danych zgłoszeń. Nie tworzyć nowej aplikacji zamiast obecnej.
 3. Zaplanować jednorazowe, jawnie uruchamiane utworzenie pierwszego administratora poza publicznym interfejsem, np. lokalnym poleceniem konfiguracji. Dane dostępowe pochodzą spoza repozytorium; nie dodawać stałego hasła do kodu ani automatycznego odtwarzania administratora przy każdym starcie. Przygotować logowanie i wylogowanie zgodne z Blazor Interactive Server. Omówić cookie uwierzytelniania, czyli zapis w przeglądarce pozwalający serwerowi rozpoznać zalogowaną osobę.
 4. Zastąpić przykładową tożsamość w układzie danymi zalogowanej osoby. Sprawdzić logowanie administratora poprawnym i błędnym hasłem, odświeżenie strony oraz wylogowanie. Pierwszy efekt: administrator może wejść na własne konto i zobaczyć, kto jest zalogowany.
-5. Tworzenie kont jest wykonane i potwierdzone przez użytkownika z SQL Server. Rozszerzenie o imię i nazwisko oraz lista kont są zaimplementowane i sprawdzone w zakresie opisanym powyżej. Pozostaje własny ekran odmowy dostępu. Ten punkt nie oznacza jeszcze wdrożenia uprawnień do zgłoszeń.
+5. Tworzenie kont jest wykonane i potwierdzone przez użytkownika z SQL Server. Rozszerzenie o imię i nazwisko, lista kont i własny ekran odmowy dostępu są zaimplementowane i sprawdzone w zakresie opisanym powyżej. Ten punkt nie oznacza jeszcze wdrożenia uprawnień do zgłoszeń.
 
 **4b. Autorzy powiązani z kontami:** ustalić sposób potraktowania dotychczasowych tekstowych autorów i przypisań, następnie zapisywać identyfikator zalogowanej osoby jako autora nowego zgłoszenia i komentarza. Użytkownik nie podaje autora dowolnym tekstem. Zasady dostępu dla niezalogowanej osoby sprawdzać na serwerze.
 

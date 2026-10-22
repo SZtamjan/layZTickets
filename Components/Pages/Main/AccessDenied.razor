@@ -1,0 +1,23 @@
+@page "/access-denied"
+
+<PageTitle>Brak dostępu</PageTitle>
+
+<section class="desk-card" aria-labelledby="access-denied-title">
+    <p class="desk-muted">403</p>
+    <h1 id="access-denied-title">Brak dostępu</h1>
+    <p>Twoje konto nie ma uprawnień do wybranej części aplikacji.</p>
+    <a class="desk-primary-button" href="/">Wróć na stronę główną</a>
+</section>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (HttpContext is not null && !HttpContext.Response.HasStarted)
+        {
+            HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+        }
+    }
+}
