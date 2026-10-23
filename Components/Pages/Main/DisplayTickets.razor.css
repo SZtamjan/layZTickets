@@ -1,0 +1,52 @@
+.ticket-search {
+    margin-bottom: 16px;
+}
+
+.ticket-search label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.ticket-search-controls {
+    display: flex;
+    gap: 12px;
+}
+
+.ticket-search-controls input {
+    flex: 1;
+    min-width: 0;
+}
+
+.ticket-pagination {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+button:disabled,
+select:disabled,
+input:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}
+
+.ticket-pagination button:disabled {
+    cursor: default;
+}
+
+button:focus-visible {
+    outline: 2px solid var(--desk-primary);
+    outline-offset: 3px;
+}
+
+.retry-button {
+    display: block;
+    margin-top: 8px;
+}
+
+@media (max-width: 760px) {
+    .ticket-search-controls {
+        flex-direction: column;
+    }
+}

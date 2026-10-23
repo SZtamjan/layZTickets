@@ -5,6 +5,7 @@
 @using layZTickets.DataSets
 @inject IDbContextFactory<AppDbContext> DbContextFactory
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<DisplayTickets> Logger
 
 <PageTitle>Wszystkie Zgłoszenia</PageTitle>
 
@@ -21,42 +22,60 @@
         </a>
     </header>
 
+    <form class="ticket-search" @onsubmit="ApplyFiltersAsync" @onsubmit:preventDefault>
+        <label for="ticket-search">Wyszukaj zgłoszenie</label>
+        <div class="ticket-search-controls">
+            <input id="ticket-search" class="desk-input" type="search" maxlength="200"
+                   placeholder="Tytuł lub numer, np. IT-15" @bind="searchText" @bind:event="oninput" disabled="@isLoading" />
+            <button class="desk-primary-button" type="submit" disabled="@isLoading">Szukaj</button>
+        </div>
+    </form>
+
     <section class="desk-filter-bar" aria-label="Filtry">
         <div class="filter-label">
             <span class="material-symbols-outlined" aria-hidden="true">filter_list</span>
             <span>Filtry:</span>
         </div>
-        <select aria-label="Status">
-            <option>Status: Wszystkie</option>
-            <option>Nowe</option>
-            <option>W trakcie</option>
-            <option>Rozwiązane</option>
+        <select aria-label="Status" @bind="selectedStatus" @bind:after="ApplyFiltersAsync" disabled="@isLoading">
+            <option value="">Status: Wszystkie</option>
+            @foreach (var status in Enum.GetValues<TicketStatus>())
+            {
+                <option value="@status">@GetStatusName(status)</option>
+            }
         </select>
-        <select aria-label="Priorytet">
-            <option>Priorytet: Wszystkie</option>
-            <option>Pilny</option>
-            <option>Wysoki</option>
-            <option>Normalny</option>
-            <option>Niski</option>
+        <select aria-label="Priorytet" @bind="selectedPriority" @bind:after="ApplyFiltersAsync" disabled="@isLoading">
+            <option value="">Priorytet: Wszystkie</option>
+            @foreach (var priority in Enum.GetValues<TicketPriority>())
+            {
+                <option value="@priority">@GetPriorityName(priority)</option>
+            }
         </select>
-        <button type="button">Wyczyść wszystkie filtry</button>
+        <select aria-label="Kategoria" @bind="selectedCategory" @bind:after="ApplyFiltersAsync" disabled="@isLoading">
+            <option value="">Kategoria: Wszystkie</option>
+            @foreach (var category in Enum.GetValues<TicketCategory>())
+            {
+                <option value="@category">@GetCategoryName(category)</option>
+            }
+        </select>
+        <button type="button" @onclick="ClearFiltersAsync" disabled="@isLoading">Wyczyść wszystkie filtry</button>
     </section>
 
     @if (!string.IsNullOrWhiteSpace(errorMessage))
     {
         <div class="alert alert-danger" role="alert">
             @errorMessage
+            <button class="retry-button" type="button" @onclick="LoadTicketsAsync" disabled="@isLoading">Spróbuj ponownie</button>
         </div>
     }
     else if (isLoading)
     {
-        <p role="status" class="desk-muted">Ładowanie ticketów...</p>
+        <p role="status" class="desk-muted">Ładowanie zgłoszeń...</p>
     }
     else if (tickets.Count == 0)
     {
-        <div class="desk-empty">
-            <h2>Brak ticketów</h2>
-            <p>Po utworzeniu pierwszego zgłoszenia pojawi się ono na tej liście.</p>
+        <div class="desk-empty" role="status">
+            <h2>@(HasFilters ? "Brak pasujących zgłoszeń" : "Brak zgłoszeń")</h2>
+            <p>@(HasFilters ? "Zmień wyszukiwane hasło lub wyczyść filtry." : "Nie masz jeszcze dostępnych zgłoszeń. Nowe zgłoszenie pojawi się na tej liście po utworzeniu.")</p>
         </div>
     }
     else
@@ -90,12 +109,12 @@
                                     </a>
                                 </td>
                                 <td>
-                                    <span class="detail-chip">@ticket.Status</span>
+                                    <span class="detail-chip">@GetStatusName(ticket.Status)</span>
                                 </td>
                                 <td>
                                     <span class="detail-chip">
                                         <span aria-hidden="true"></span>
-                                        @ticket.Priority
+                                        @GetPriorityName(ticket.Priority)
                                     </span>
                                 </td>
                                 <td>@ticket.CreatedByUser.DisplayName</td>
@@ -113,16 +132,18 @@
             </div>
 
             <footer class="desk-table-footer">
-                <span>Pokazano @tickets.Count zgłoszeń</span>
-                <div>
-                    <button type="button" disabled>
+                <span role="status">Pokazano @FirstResult–@LastResult z @totalCount zgłoszeń</span>
+                <nav class="ticket-pagination" aria-label="Strony zgłoszeń">
+                    <button type="button" aria-label="Poprzednia strona" disabled="@(isLoading || currentPage <= 1)"
+                            @onclick="() => ChangePageAsync(currentPage - 1)">
                         <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
                     </button>
-                    <button type="button" class="active">1</button>
-                    <button type="button" disabled>
+                    <span aria-current="page">Strona @currentPage z @TotalPages</span>
+                    <button type="button" aria-label="Następna strona" disabled="@(isLoading || currentPage >= TotalPages)"
+                            @onclick="() => ChangePageAsync(currentPage + 1)">
                         <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
                     </button>
-                </div>
+                </nav>
             </footer>
         </section>
     }
@@ -130,13 +151,72 @@
 
 @code {
     private List<TicketData> tickets = new();
-    private bool isLoading = true;
+    private const int PageSize = 20;
+    private int currentPage = 1;
+    private int totalCount;
+    private string searchText = string.Empty;
+    private string appliedSearch = string.Empty;
+    private TicketStatus? selectedStatus;
+    private TicketPriority? selectedPriority;
+    private TicketCategory? selectedCategory;
+    private bool isLoading;
     private string? errorMessage;
 
-    protected override async Task OnInitializedAsync()
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
+    private int FirstResult => totalCount == 0 ? 0 : (currentPage - 1) * PageSize + 1;
+    private int LastResult => (currentPage - 1) * PageSize + tickets.Count;
+    private bool HasFilters => appliedSearch.Length > 0 || selectedStatus.HasValue
+        || selectedPriority.HasValue || selectedCategory.HasValue;
+
+    protected override Task OnInitializedAsync() => LoadTicketsAsync();
+
+    private async Task ApplyFiltersAsync()
     {
+        if (isLoading) return;
+        appliedSearch = searchText.Trim();
+        currentPage = 1;
+        await LoadTicketsAsync();
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        if (isLoading) return;
+        searchText = string.Empty;
+        selectedStatus = null;
+        selectedPriority = null;
+        selectedCategory = null;
+        await ApplyFiltersAsync();
+    }
+
+    private async Task ChangePageAsync(int page)
+    {
+        if (isLoading || page < 1 || page > TotalPages) return;
+        currentPage = page;
+        await LoadTicketsAsync();
+    }
+
+    private async Task LoadTicketsAsync()
+    {
+        if (isLoading) return;
+        isLoading = true;
+        errorMessage = null;
+        tickets = new();
+        totalCount = 0;
         try
         {
+            if ((selectedStatus.HasValue && !Enum.IsDefined(selectedStatus.Value))
+                || (selectedPriority.HasValue && !Enum.IsDefined(selectedPriority.Value))
+                || (selectedCategory.HasValue && !Enum.IsDefined(selectedCategory.Value)))
+            {
+                errorMessage = "Wybierz poprawne wartości filtrów lub wyczyść filtry.";
+                return;
+            }
+            if (appliedSearch.Length > 200)
+            {
+                errorMessage = "Wyszukiwana fraza może mieć najwyżej 200 znaków.";
+                return;
+            }
+
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
             var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             var actor = await TicketAccess.GetActorAsync(dbContext, authentication.User);
@@ -146,16 +226,41 @@
                 return;
             }
 
-            tickets = await TicketAccess.VisibleTickets(dbContext, actor)
+            // Uprawnienia i wszystkie filtry są częścią zapytania SQL, także dla licznika.
+            var query = TicketAccess.VisibleTickets(dbContext, actor).AsNoTracking();
+            if (selectedStatus.HasValue)
+                query = query.Where(ticket => ticket.Status == selectedStatus.Value);
+            if (selectedPriority.HasValue)
+                query = query.Where(ticket => ticket.Priority == selectedPriority.Value);
+            if (selectedCategory.HasValue)
+                query = query.Where(ticket => ticket.Category == selectedCategory.Value);
+            if (appliedSearch.Length > 0)
+            {
+                // TicketNumber jest [NotMapped]; numer wyszukujemy przez kolumnę Id.
+                var number = appliedSearch.TrimStart('#');
+                if (number.StartsWith("IT-", StringComparison.OrdinalIgnoreCase))
+                    number = number[3..];
+                var ticketId = int.TryParse(number, out var parsedId) && parsedId > 0 ? parsedId : 0;
+                query = query.Where(ticket => ticket.Title.Contains(appliedSearch) || ticket.Id == ticketId);
+            }
+
+            totalCount = await query.CountAsync();
+            currentPage = Math.Clamp(currentPage, 1, TotalPages);
+            tickets = await query
                 .Include(ticket => ticket.CreatedByUser)
                 .Include(ticket => ticket.AssignedAgent)
-                .AsNoTracking()
                 .OrderByDescending(ticket => ticket.CreatedAt)
+                .ThenByDescending(ticket => ticket.Id)
+                .Skip((currentPage - 1) * PageSize)
+                .Take(PageSize)
                 .ToListAsync();
         }
         catch (Exception exception)
         {
-            errorMessage = $"Nie udało się pobrać ticketów: {exception.Message}";
+            Logger.LogError(exception, "Nie udało się pobrać listy zgłoszeń.");
+            tickets = new();
+            totalCount = 0;
+            errorMessage = "Nie udało się pobrać zgłoszeń. Spróbuj ponownie.";
         }
         finally
         {
@@ -163,19 +268,32 @@
         }
     }
 
-    private static string GetStatusClass(string status)
+    private static string GetStatusName(TicketStatus status) => status switch
     {
-        return status.Equals("New", StringComparison.OrdinalIgnoreCase) || status.Equals("Nowe", StringComparison.OrdinalIgnoreCase)
-            ? "status-chip status-new"
-            : "status-chip status-progress";
-    }
+        TicketStatus.New => "Nowe",
+        TicketStatus.InProgress => "W trakcie",
+        TicketStatus.Pending => "Oczekujące",
+        TicketStatus.Closed => "Zamknięte",
+        _ => "Nieznany status"
+    };
 
-    private static string GetPriorityClass(string priority)
+    private static string GetPriorityName(TicketPriority priority) => priority switch
     {
-        return priority.Equals("Critical", StringComparison.OrdinalIgnoreCase) || priority.Equals("High", StringComparison.OrdinalIgnoreCase)
-            ? "priority-chip priority-high"
-            : "priority-chip";
-    }
+        TicketPriority.Low => "Niski",
+        TicketPriority.Normal => "Normalny",
+        TicketPriority.High => "Wysoki",
+        TicketPriority.Highest => "Najwyższy",
+        _ => "Nieznany priorytet"
+    };
+
+    private static string GetCategoryName(TicketCategory category) => category switch
+    {
+        TicketCategory.Other => "Inne",
+        TicketCategory.Hardware => "Sprzęt",
+        TicketCategory.Software => "Oprogramowanie",
+        TicketCategory.Network => "Sieć",
+        _ => "Nieznana kategoria"
+    };
 
     private static string GetInitials(string? value)
     {
