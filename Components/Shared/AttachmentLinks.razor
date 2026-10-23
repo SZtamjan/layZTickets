@@ -1,0 +1,21 @@
+@using layZTickets.Data
+@using layZTickets.DataSets
+
+@if (Files.Any())
+{
+    <ul class="attachment-links">
+        @foreach (var file in Files)
+        {
+            <li @key="file.Id">
+                <a href="@($"/attachments/{file.Id}")" download="@file.FileName" data-enhance-nav="false">
+                    @file.FileName
+                </a>
+                <small>@AttachmentUpload.FormatSize(file.Size)</small>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    [Parameter, EditorRequired] public IEnumerable<AttachmentInfo> Files { get; set; } = Array.Empty<AttachmentInfo>();
+}

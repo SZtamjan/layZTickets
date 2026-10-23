@@ -12,5 +12,6 @@
         public DateTime? EditedAt { get; set; }
 
         public TicketData Ticket { get; set; } = default!;
+        public List<TicketAttachment> Attachments { get; set; } = new();
     }
 }

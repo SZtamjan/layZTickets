@@ -21,6 +21,7 @@ namespace layZTickets.DataSets
         public layZTickets.Data.ApplicationUser? AssignedAgent { get; set; }
 
         public List<TicketComment> Comments { get; set; } = new();
+        public List<TicketAttachment> Attachments { get; set; } = new();
         //public List<TicketHistory> History { get; set; } = new();
 
         [NotMapped]

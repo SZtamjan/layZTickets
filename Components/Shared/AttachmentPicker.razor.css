@@ -1,0 +1,30 @@
+.attachment-picker {
+    padding: 12px;
+    border: 1px dashed var(--desk-border);
+    border-radius: 8px;
+    overflow-wrap: anywhere;
+}
+
+label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+input {
+    max-width: 100%;
+    font-size: 13px;
+}
+
+p {
+    font-size: 12px;
+    margin: 8px 0 0;
+    color: var(--desk-muted);
+}
+
+.validation-message { color: var(--desk-error); }
+
+ul { padding-left: 16px; margin-bottom: 0; }
+li { margin-top: 8px; font-size: 13px; }
+button { margin-left: 8px; }

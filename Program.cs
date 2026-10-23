@@ -74,6 +74,8 @@ app.UseAntiforgery();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
+app.MapTicketAttachments();
+
 app.MapPost("/logout", async (
     HttpContext context,
     IAntiforgery antiforgery,

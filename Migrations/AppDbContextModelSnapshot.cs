@@ -233,6 +233,51 @@ namespace layZTickets.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("layZTickets.DataSets.TicketAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("TicketCommentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TicketId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UploadedByUserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TicketId");
+
+                    b.HasIndex("UploadedByUserId");
+
+                    b.HasIndex("TicketCommentId", "TicketId");
+
+                    b.ToTable("TicketAttachments", t =>
+                        {
+                            t.HasCheckConstraint("CK_TicketAttachments_Size", "[Size] >= 0 AND [Size] <= 5242880 AND DATALENGTH([Content]) = [Size]");
+                        });
+                });
+
             modelBuilder.Entity("layZTickets.DataSets.TicketComment", b =>
                 {
                     b.Property<int>("Id")
@@ -373,6 +418,33 @@ namespace layZTickets.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("layZTickets.DataSets.TicketAttachment", b =>
+                {
+                    b.HasOne("layZTickets.DataSets.TicketData", "Ticket")
+                        .WithMany("Attachments")
+                        .HasForeignKey("TicketId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("layZTickets.Data.ApplicationUser", "UploadedByUser")
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("layZTickets.DataSets.TicketComment", "Comment")
+                        .WithMany("Attachments")
+                        .HasForeignKey("TicketCommentId", "TicketId")
+                        .HasPrincipalKey("Id", "TicketId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Comment");
+
+                    b.Navigation("Ticket");
+
+                    b.Navigation("UploadedByUser");
+                });
+
             modelBuilder.Entity("layZTickets.DataSets.TicketComment", b =>
                 {
                     b.HasOne("layZTickets.Data.ApplicationUser", "AuthorUser")
@@ -410,8 +482,15 @@ namespace layZTickets.Migrations
                     b.Navigation("CreatedByUser");
                 });
 
+            modelBuilder.Entity("layZTickets.DataSets.TicketComment", b =>
+                {
+                    b.Navigation("Attachments");
+                });
+
             modelBuilder.Entity("layZTickets.DataSets.TicketData", b =>
                 {
+                    b.Navigation("Attachments");
+
                     b.Navigation("Comments");
                 });
 #pragma warning restore 612, 618

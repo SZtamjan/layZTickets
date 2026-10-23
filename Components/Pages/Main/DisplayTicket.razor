@@ -88,6 +88,7 @@
                         </div>
                     </div>
                     <p>@ticket.Description</p>
+                    <AttachmentLinks Files="attachments.Where(file => file.TicketCommentId is null)" />
                 </section>
 
                 <section class="ticket-timeline">
@@ -109,6 +110,7 @@
                                 <strong>@(comment.IsInternal ? "Notatka wewnętrzna" : "Odpowiedź")</strong>
                                 <p class="comment-author">@comment.AuthorUser.DisplayName</p>
                                 <p>@comment.Content</p>
+                                <AttachmentLinks Files="attachments.Where(file => file.TicketCommentId == comment.Id)" />
                                 <small>@comment.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</small>
                             </div>
                         </div>
@@ -123,12 +125,9 @@
 
                     @if (canReply)
                     {
-                        <textarea class="reply-textarea" @bind="commentContent" @bind:event="oninput" placeholder="@(canReadInternal ? "Wpisz odpowiedź lub notatkę..." : "Wpisz odpowiedź...")"></textarea>
+                        <textarea class="reply-textarea" @bind="commentContent" @bind:event="oninput" disabled="@isAddingComment" placeholder="@(canReadInternal ? "Wpisz odpowiedź lub notatkę..." : "Wpisz odpowiedź...")"></textarea>
+                        <AttachmentPicker @key="replyAttachmentVersion" Selected="selection => replyAttachmentSelection = selection" Disabled="@isAddingComment" />
                         <footer>
-                            <button type="button">
-                                <span class="material-symbols-outlined" aria-hidden="true">attach_file</span>
-                                Załącz plik
-                            </button>
                             @if (canReadInternal)
                             {
                                 <button type="button" @onclick="() => AddCommentAsync(true)" disabled="@isAddingComment">
@@ -184,11 +183,28 @@
 
                 <section class="side-card attachments-card">
                     <h2>Załączniki</h2>
-                    <div class="attachment-empty">
-                        <span class="material-symbols-outlined" aria-hidden="true">description</span>
-                        Brak załączników
-                    </div>
-                    <button type="button">+ Dodaj pliki</button>
+                    @if (attachments.Count == 0)
+                    {
+                        <p class="attachment-empty">Brak załączników</p>
+                    }
+                    <AttachmentLinks Files="attachments" />
+                    @if (canReply)
+                    {
+                        <p class="desk-muted">Dodaj pliki widoczne dla uczestników zgłoszenia.
+                            @if (canReadInternal)
+                            {
+                                <span>Prywatne pliki dołącz do notatki wewnętrznej.</span>
+                            }
+                        </p>
+                        <AttachmentPicker @key="ticketAttachmentVersion" Selected="selection => ticketAttachmentSelection = selection" Disabled="@isAddingAttachments" />
+                        <button type="button" @onclick="AddAttachmentsAsync" disabled="@(isAddingAttachments || ticketAttachmentSelection.Files.Count == 0 || !ticketAttachmentSelection.IsValid)">
+                            @(isAddingAttachments ? "Wysyłanie..." : "Dodaj załączniki")
+                        </button>
+                    }
+                    @if (attachmentErrorMessage is not null)
+                    {
+                        <p class="comment-error" role="alert">@attachmentErrorMessage</p>
+                    }
                 </section>
             </aside>
         </div>
@@ -212,6 +228,14 @@
     private bool canReadInternal;
     private bool canChangeStatus;
     private bool canChangePriority;
+    private List<AttachmentInfo> attachments = new();
+    private AttachmentSelection replyAttachmentSelection = AttachmentSelection.Empty;
+    private AttachmentSelection ticketAttachmentSelection = AttachmentSelection.Empty;
+    private int replyAttachmentVersion;
+    private int ticketAttachmentVersion;
+    private bool isAddingAttachments;
+    private string? attachmentErrorMessage;
+    private int? loadedTicketId;
 
     private void HandleAssigned(AgentAssignment.AssignmentResult result)
     {
@@ -223,6 +247,18 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        if (loadedTicketId != TicketId)
+        {
+            commentContent = string.Empty;
+            commentErrorMessage = null;
+            attachmentErrorMessage = null;
+            replyAttachmentSelection = AttachmentSelection.Empty;
+            ticketAttachmentSelection = AttachmentSelection.Empty;
+            replyAttachmentVersion++;
+            ticketAttachmentVersion++;
+            loadedTicketId = TicketId;
+        }
+        attachments = new();
         canReply = false; canAssign = false; canReadInternal = false;
         canChangeStatus = false; canChangePriority = false;
         ticket = null; errorMessage = null; isLoading = true;
@@ -255,6 +291,8 @@
             canReply = ticket is not null && actor.CanReply(ticket);
             canChangeStatus = ticket is not null && actor.CanChangeStatus;
             canChangePriority = ticket is not null && actor.CanChangePriority(ticket);
+            if (ticket is not null)
+                attachments = await AttachmentAccess.ListAsync(dbContext, actor, ticket.Id);
         }
         catch (Exception exception)
         {
@@ -414,13 +452,22 @@
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(commentContent))
+        if (!replyAttachmentSelection.IsValid)
         {
-            commentErrorMessage = "Wpisz treść komentarza.";
+            commentErrorMessage = "Popraw wybór załączników lub wyczyść wybór plików.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(commentContent) && replyAttachmentSelection.Files.Count == 0)
+        {
+            commentErrorMessage = "Wpisz treść komentarza lub wybierz załącznik.";
             return;
         }
 
         isAddingComment = true;
+        var targetTicketId = ticket.Id;
+        var content = commentContent.Trim();
+        var selectedFiles = replyAttachmentSelection.Files;
 
         try
         {
@@ -434,6 +481,7 @@
                 return;
             }
 
+            var files = await AttachmentUpload.ReadAsync(selectedFiles);
             await using var dbContext = await DbContextFactory.CreateDbContextAsync();
 
             var actor = await TicketAccess.GetActorAsync(dbContext, user);
@@ -444,7 +492,7 @@
             }
             var author = actor.Account;
 
-            var ticketToUpdate = await TicketAccess.VisibleTickets(dbContext, actor).FirstOrDefaultAsync(ticket => ticket.Id == TicketId.Value);
+            var ticketToUpdate = await TicketAccess.VisibleTickets(dbContext, actor).FirstOrDefaultAsync(ticket => ticket.Id == targetTicketId);
             if (ticketToUpdate is null)
             {
                 commentErrorMessage = "Nie znaleziono zgłoszenia lub nie masz do niego dostępu.";
@@ -459,22 +507,39 @@
 
             var comment = new TicketComment
             {
-                TicketId = TicketId.Value,
+                TicketId = targetTicketId,
                 AuthorUserId = userId,
-                Content = commentContent.Trim(),
+                Content = content,
                 IsInternal = isInternal,
                 CreatedAt = DateTime.UtcNow
             };
 
             dbContext.TicketComments.Add(comment);
+            comment.Attachments = AttachmentUpload.CreateEntities(files, userId);
+            foreach (var file in comment.Attachments) file.TicketId = ticketToUpdate.Id;
             ticketToUpdate.UpdatedAt = comment.CreatedAt;
 
             await dbContext.SaveChangesAsync();
 
-            comment.AuthorUser = author;
-            ticket.Comments.Add(comment);
-            ticket.UpdatedAt = ticketToUpdate.UpdatedAt;
-            commentContent = string.Empty;
+            if (ticket?.Id == targetTicketId)
+            {
+                // Model widoku zachowuje treść komentarza i metadane, bez bajtów plików.
+                ticket.Comments.Add(new TicketComment
+                {
+                    Id = comment.Id, TicketId = comment.TicketId, AuthorUserId = userId,
+                    AuthorUser = author, Content = comment.Content, IsInternal = comment.IsInternal,
+                    CreatedAt = comment.CreatedAt
+                });
+                attachments.AddRange(comment.Attachments.Select(ToAttachmentInfo));
+                ticket.UpdatedAt = ticketToUpdate.UpdatedAt;
+                commentContent = string.Empty;
+                replyAttachmentSelection = AttachmentSelection.Empty;
+                replyAttachmentVersion++;
+            }
+        }
+        catch (InvalidDataException exception)
+        {
+            commentErrorMessage = exception.Message;
         }
         catch (Exception exception)
         {
@@ -486,6 +551,69 @@
             isAddingComment = false;
         }
     }
+
+    private async Task AddAttachmentsAsync()
+    {
+        if (isAddingAttachments) return;
+        attachmentErrorMessage = null;
+        if (TicketId is null || ticket is null || !ticketAttachmentSelection.IsValid || ticketAttachmentSelection.Files.Count == 0)
+        {
+            attachmentErrorMessage = "Wybierz poprawne pliki i zgłoszenie.";
+            return;
+        }
+
+        isAddingAttachments = true;
+        var targetTicketId = ticket.Id;
+        var selectedFiles = ticketAttachmentSelection.Files;
+        try
+        {
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            if (authentication.User.Identity?.IsAuthenticated != true)
+            {
+                attachmentErrorMessage = "Zaloguj się ponownie, aby dodać pliki.";
+                return;
+            }
+            var drafts = await AttachmentUpload.ReadAsync(selectedFiles);
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+            var actor = await TicketAccess.GetActorAsync(db, authentication.User);
+            var target = actor is null ? null : await TicketAccess.VisibleTickets(db, actor)
+                .SingleOrDefaultAsync(item => item.Id == targetTicketId);
+            if (actor is null || target is null || !actor.CanReply(target))
+            {
+                attachmentErrorMessage = "Nie masz uprawnień do dodawania plików do tego zgłoszenia.";
+                return;
+            }
+            var files = AttachmentUpload.CreateEntities(drafts, actor.Account.Id);
+            foreach (var file in files) file.TicketId = target.Id;
+            db.TicketAttachments.AddRange(files);
+            target.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+
+            if (ticket?.Id == target.Id)
+            {
+                attachments.AddRange(files.Select(ToAttachmentInfo));
+                ticket.UpdatedAt = target.UpdatedAt;
+                ticketAttachmentSelection = AttachmentSelection.Empty;
+                ticketAttachmentVersion++;
+            }
+        }
+        catch (InvalidDataException exception)
+        {
+            attachmentErrorMessage = exception.Message;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Nie udało się dodać załączników do zgłoszenia {TicketId}.", TicketId);
+            attachmentErrorMessage = "Nie udało się zapisać załączników. Spróbuj ponownie.";
+        }
+        finally
+        {
+            isAddingAttachments = false;
+        }
+    }
+
+    private static AttachmentInfo ToAttachmentInfo(TicketAttachment file)
+        => new(file.Id, file.FileName, file.Size, file.TicketCommentId, file.CreatedAt);
 
     private static string FormatDate(DateTime? date)
     {

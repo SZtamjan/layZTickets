@@ -1,0 +1,75 @@
+@using layZTickets.Data
+
+<div class="attachment-picker">
+    <label for="@inputId">Załączniki — dowolny typ, do 5 MB na plik (maks. 5 naraz)</label>
+    <InputFile @key="inputVersion" id="@inputId" OnChange="SelectFilesAsync" multiple disabled="@Disabled" />
+    <p>Wybór plików zastępuje poprzedni wybór. Pliki zapiszą się po wysłaniu formularza.</p>
+    @if (errorMessage is not null)
+    {
+        <p class="validation-message" role="alert">@errorMessage</p>
+    }
+    @if (selection.Files.Count > 0)
+    {
+        <ul>
+            @foreach (var file in selection.Files)
+            {
+                <li>
+                    <span>@file.Name (@AttachmentUpload.FormatSize(file.Size))</span>
+                    <button type="button" disabled="@Disabled" @onclick="() => RemoveAsync(file)"
+                            aria-label="@($"Usuń wybrany plik {file.Name}")">Usuń</button>
+                </li>
+            }
+        </ul>
+    }
+    @if (selection.Files.Count > 0 || errorMessage is not null)
+    {
+        <button type="button" disabled="@Disabled" @onclick="ClearAsync">Wyczyść wybór plików</button>
+    }
+</div>
+
+@code {
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback<AttachmentSelection> Selected { get; set; }
+    private readonly string inputId = $"attachment-{Guid.NewGuid():N}";
+    private int inputVersion;
+    private AttachmentSelection selection = AttachmentSelection.Empty;
+    private string? errorMessage;
+
+    private async Task SelectFilesAsync(InputFileChangeEventArgs args)
+    {
+        if (Disabled) return;
+        errorMessage = null;
+        try
+        {
+            if (args.FileCount > AttachmentUpload.MaxFiles)
+                throw new InvalidDataException("Możesz wybrać najwyżej 5 plików naraz.");
+            var files = args.GetMultipleFiles(AttachmentUpload.MaxFiles);
+            AttachmentUpload.ValidateSelection(files);
+            selection = new(files);
+        }
+        catch (InvalidDataException exception)
+        {
+            errorMessage = exception.Message;
+            selection = new(Array.Empty<IBrowserFile>(), false);
+            inputVersion++;
+        }
+        await Selected.InvokeAsync(selection);
+    }
+
+    private async Task RemoveAsync(IBrowserFile file)
+    {
+        if (Disabled) return;
+        selection = new(selection.Files.Where(item => !ReferenceEquals(item, file)).ToArray());
+        if (selection.Files.Count == 0) inputVersion++;
+        await Selected.InvokeAsync(selection);
+    }
+
+    private async Task ClearAsync()
+    {
+        if (Disabled) return;
+        errorMessage = null;
+        selection = AttachmentSelection.Empty;
+        inputVersion++;
+        await Selected.InvokeAsync(selection);
+    }
+}

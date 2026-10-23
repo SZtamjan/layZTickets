@@ -3,6 +3,7 @@
 @using Microsoft.EntityFrameworkCore
 @using layZTickets.Data
 @using layZTickets.DataSets
+@using layZTickets.Components.Shared
 @inject IDbContextFactory<AppDbContext> DbContextFactory
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ILogger<CreateTicket> Logger
@@ -56,13 +57,8 @@
                 </div>
             </section>
 
-            <section class="desk-card attachment-drop">
-                <label>Załączniki</label>
-                <div>
-                    <span class="material-symbols-outlined" aria-hidden="true">cloud_upload</span>
-                    <strong>Kliknij lub przeciągnij plik tutaj</strong>
-                    <p>PNG, JPG, PDF, TXT (Max 10MB)</p>
-                </div>
+            <section class="desk-card">
+                <AttachmentPicker @key="attachmentVersion" Selected="selection => attachmentSelection = selection" Disabled="@isSaving" />
             </section>
         </div>
 
@@ -128,6 +124,8 @@
     private bool isSaving;
     private string? successMessage;
     private string? errorMessage;
+    private AttachmentSelection attachmentSelection = AttachmentSelection.Empty;
+    private int attachmentVersion;
 
     private async Task CreateTicketAsync()
     {
@@ -142,6 +140,12 @@
 
         if (!IsValid())
         {
+            return;
+        }
+
+        if (!attachmentSelection.IsValid)
+        {
+            errorMessage = "Popraw wybór załączników lub wyczyść wybór plików.";
             return;
         }
 
@@ -192,11 +196,19 @@
             };
 
             dbContext.Tickets.Add(ticket);
+            var files = await AttachmentUpload.ReadAsync(attachmentSelection.Files);
+            ticket.Attachments = AttachmentUpload.CreateEntities(files, userId);
             await dbContext.SaveChangesAsync();
 
             successMessage = $"Ticket {ticket.TicketNumber} został utworzony.";
             ticketDraft = CreateEmptyTicket();
             submitted = false;
+            attachmentSelection = AttachmentSelection.Empty;
+            attachmentVersion++;
+        }
+        catch (InvalidDataException exception)
+        {
+            errorMessage = exception.Message;
         }
         catch (Exception exception)
         {
