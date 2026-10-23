@@ -7,10 +7,12 @@
     <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
     <nav class="nav-scrollable">
-        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-            <span class="material-symbols-outlined" aria-hidden="true">dashboard</span>
-            <span>Dashboard</span>
-        </NavLink>
+        <AuthorizeView Roles="Admin,Agent">
+            <NavLink class="nav-link" href="dashboard">
+                <span class="material-symbols-outlined" aria-hidden="true">dashboard</span>
+                <span>Dashboard</span>
+            </NavLink>
+        </AuthorizeView>
 
         <AuthorizeView Roles="Admin">
             <NavLink class="nav-link" href="admin">

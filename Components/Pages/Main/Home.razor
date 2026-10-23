@@ -1,6 +1,39 @@
 ﻿@page "/"
-<PageTitle>Home</PageTitle>
+@using layZTickets.Data
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+@inject ILogger<Home> Logger
 
-<h1>Hello, world!</h1>
+<PageTitle>layZTickets</PageTitle>
 
-Welcome to your new app.
+@if (failed)
+{
+    <div class="alert alert-danger" role="alert">Nie udało się otworzyć strony głównej. Spróbuj ponownie.</div>
+    <a class="desk-primary-button" href="/">Spróbuj ponownie</a>
+}
+else
+{
+    <p role="status">Otwieranie strony głównej...</p>
+}
+
+@code {
+    private bool failed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var actor = await TicketAccess.GetActorAsync(db, authentication.User);
+            Navigation.NavigateTo(actor is null ? "/login" : actor.CanReadAll ? "/dashboard" : "/DisplayTickets", forceLoad: true);
+        }
+        catch (Exception exception) when (exception is not NavigationException)
+        {
+            Logger.LogError(exception, "Nie udało się wybrać strony głównej użytkownika.");
+            failed = true;
+        }
+    }
+}

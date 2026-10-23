@@ -1,0 +1,197 @@
+@page "/dashboard"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin,Agent")]
+@using layZTickets.Data
+@using layZTickets.DataSets
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+@inject ILogger<Dashboard> Logger
+
+<PageTitle>Dashboard — layZTickets</PageTitle>
+
+<div class="desk-page dashboard">
+    <header class="desk-page-header">
+        <div>
+            <p class="dashboard-eyebrow">CENTRUM OBSŁUGI ZGŁOSZEŃ</p>
+            <h1>Dashboard</h1>
+            <p>Przegląd pracy zespołu · wszystkie kategorie</p>
+        </div>
+        <button class="desk-secondary-button" type="button" @onclick="LoadAsync" disabled="@isLoading">
+            <span class="material-symbols-outlined" aria-hidden="true">refresh</span>
+            Odśwież
+        </button>
+    </header>
+
+    @if (isLoading)
+    {
+        <p class="desk-muted" role="status">Ładowanie statystyk...</p>
+    }
+    else if (errorMessage is not null)
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+    else if (data is not null)
+    {
+        <div class="dashboard-context">
+            <p>Witaj, <strong>@data.ViewerName</strong>. W systemie: <strong>@data.Total zgłoszeń</strong>.
+                Przypisane do Ciebie otwarte: <strong>@data.AssignedToMe</strong>.</p>
+            <small>Odczyt: @data.RefreshedAt.ToString("dd.MM.yyyy HH:mm") UTC</small>
+        </div>
+
+        @if (data.Total == 0)
+        {
+            <div class="dashboard-empty" role="status">Nie ma jeszcze zgłoszeń. Statystyki pojawią się po dodaniu pierwszego.</div>
+        }
+
+        <section class="dashboard-metrics" aria-label="Najważniejsze statystyki">
+            <article class="desk-card metric-card">
+                <span class="metric-icon material-symbols-outlined" aria-hidden="true">inbox</span>
+                <h2>Otwarte</h2><strong>@data.Open</strong><p>Wszystkie poza zamkniętymi</p>
+            </article>
+            <article class="desk-card metric-card">
+                <span class="metric-icon material-symbols-outlined" aria-hidden="true">person_search</span>
+                <h2>Nieprzypisane</h2><strong>@data.Unassigned</strong><p>Otwarte, bez agenta</p>
+            </article>
+            <article class="desk-card metric-card metric-urgent">
+                <span class="metric-icon material-symbols-outlined" aria-hidden="true">priority_high</span>
+                <h2>Wysoki priorytet</h2><strong>@data.HighPriority</strong><p>Otwarte: wysoki i najwyższy</p>
+            </article>
+            <article class="desk-card metric-card">
+                <span class="metric-icon material-symbols-outlined" aria-hidden="true">task_alt</span>
+                <h2>Zamknięte w 7 dni</h2><strong>@data.ClosedLastWeek</strong><p>Od @data.Days[0].Date.ToString("dd.MM") do teraz (UTC)</p>
+            </article>
+        </section>
+
+        <div class="dashboard-grid">
+            <section class="desk-card dashboard-panel">
+                <div class="panel-heading"><h2>Statusy zgłoszeń</h2><span>@data.Total łącznie</span></div>
+                @foreach (var item in data.Statuses)
+                {
+                    <div class="breakdown-row">
+                        <div><span>@item.Label</span><strong>@item.Count</strong></div>
+                        <div class="bar-track" aria-hidden="true"><span style="width: @(Percent(item.Count, data.Total))%"></span></div>
+                    </div>
+                }
+            </section>
+
+            <section class="desk-card dashboard-panel">
+                <div class="panel-heading"><h2>Otwarte według kategorii</h2><span>@data.Open łącznie</span></div>
+                @foreach (var item in data.Categories)
+                {
+                    <div class="breakdown-row">
+                        <div><span>@item.Label</span><strong>@item.Count</strong></div>
+                        <div class="bar-track category-bar" aria-hidden="true"><span style="width: @(Percent(item.Count, data.Open))%"></span></div>
+                    </div>
+                }
+            </section>
+
+            <section class="desk-card dashboard-panel activity-panel">
+                <div class="panel-heading"><h2>Ruch z ostatnich 7 dni</h2><span>Dni i godziny w UTC</span></div>
+                <p class="chart-legend"><span class="legend-created"></span> Utworzone <span class="legend-closed"></span> Zamknięte</p>
+                <div class="activity-chart" aria-hidden="true">
+                    @foreach (var day in data.Days)
+                    {
+                        <div class="activity-day">
+                            <div class="activity-bars">
+                                <div><small>@day.Created</small><span class="created-bar" style="height: @(Percent(day.Created, ActivityMax))%"></span></div>
+                                <div><small>@day.Closed</small><span class="closed-bar" style="height: @(Percent(day.Closed, ActivityMax))%"></span></div>
+                            </div>
+                            <span>@day.Date.ToString("dd.MM")</span>
+                        </div>
+                    }
+                </div>
+                <details class="activity-values">
+                    <summary>Dane wykresu w tabeli</summary>
+                    <table>
+                        <caption class="visually-hidden">Utworzone i zamknięte zgłoszenia, ostatnie 7 dni UTC</caption>
+                        <thead><tr><th scope="col">Dzień</th><th scope="col">Utworzone</th><th scope="col">Zamknięte</th></tr></thead>
+                        <tbody>
+                            @foreach (var day in data.Days)
+                            {
+                                <tr><th scope="row">@day.Date.ToString("dd.MM.yyyy")</th><td>@day.Created</td><td>@day.Closed</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </details>
+                <p class="panel-note">Zamknięcia według daty zamknięcia; ponownie otwarte zgłoszenia nie są liczone jako zamknięte.</p>
+            </section>
+
+            <section class="desk-card dashboard-panel">
+                <div class="panel-heading"><h2>Obciążenie agentów</h2><span>Otwarte i przypisane</span></div>
+                @if (data.Agents.Count == 0)
+                {
+                    <p class="desk-muted">Brak otwartych zgłoszeń przypisanych do agentów.</p>
+                }
+                else
+                {
+                    <ul class="agent-workload">
+                        @foreach (var agent in data.Agents)
+                        {
+                            <li><span>@agent.Name</span><strong>@agent.OpenCount</strong></li>
+                        }
+                    </ul>
+                }
+            </section>
+
+            <section class="desk-card dashboard-panel urgent-panel">
+                <div class="panel-heading"><h2>Sprawy o wysokim priorytecie</h2><a href="/DisplayTickets">Wszystkie zgłoszenia</a></div>
+                <p class="panel-note">Do 8 otwartych spraw, najpierw najwyższy priorytet, następnie najstarsze.</p>
+                @if (data.UrgentTickets.Count == 0)
+                {
+                    <p class="desk-muted">Brak otwartych zgłoszeń z wysokim lub najwyższym priorytetem.</p>
+                }
+                else
+                {
+                    <ul class="urgent-list">
+                        @foreach (var item in data.UrgentTickets)
+                        {
+                            <li>
+                                <a href="@($"/DisplayTicket/{item.Id}")"><span class="urgent-number">IT-@item.Id</span> @item.Title</a>
+                                <span class="urgent-priority">@(item.Priority == TicketPriority.Highest ? "Najwyższy" : "Wysoki")</span>
+                                <small>@item.CreatedAt.ToString("dd.MM.yyyy HH:mm") UTC</small>
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+        </div>
+    }
+</div>
+
+@code {
+    private DashboardData? data;
+    private bool isLoading;
+    private string? errorMessage;
+    private int ActivityMax => data is null ? 1 : Math.Max(1, data.Days.Max(day => Math.Max(day.Created, day.Closed)));
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        if (isLoading) return;
+        isLoading = true;
+        data = null;
+        errorMessage = null;
+        try
+        {
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            data = await DashboardStatistics.LoadAsync(db, authentication.User);
+            if (data is null) Navigation.NavigateTo("/access-denied", forceLoad: true);
+        }
+        catch (Exception exception) when (exception is not NavigationException)
+        {
+            Logger.LogError(exception, "Nie udało się pobrać statystyk dashboardu.");
+            data = null;
+            errorMessage = "Nie udało się pobrać statystyk. Spróbuj ponownie przyciskiem Odśwież.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private static int Percent(int count, int total) => total == 0 ? 0 : (int)Math.Round(count * 100d / total);
+}

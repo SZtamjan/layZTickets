@@ -54,6 +54,15 @@ if (args.Contains("--bootstrap-agents=true"))
     return;
 }
 
+if (args.Contains("--seed-demo-tickets=true"))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var added = await DemoTicketSetup.CreateAsync(db);
+    Console.WriteLine($"Dodano {added} przykładowych zgłoszeń. Istniejące zgłoszenia i konta pozostały bez zmian.");
+    return;
+}
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
