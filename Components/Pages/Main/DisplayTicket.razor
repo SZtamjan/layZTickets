@@ -146,11 +146,6 @@
             </main>
 
             <aside class="ticket-side-panel">
-                @if (canAssign)
-                {
-                    <AgentAssignment @key="ticket.Id" TicketId="ticket.Id" Assigned="HandleAssigned" />
-                }
-
                 <section class="side-card">
                     <h2>Szczegóły</h2>
                     <dl>
@@ -164,7 +159,17 @@
                         </div>
                         <div>
                             <dt>Przypisany agent</dt>
-                            <dd>@(ticket.AssignedAgent?.DisplayName ?? "Nieprzypisany")</dd>
+                            <dd>
+                                @if (canAssign)
+                                {
+                                    <AgentAssignment @key="ticket.Id" TicketId="ticket.Id"
+                                                     AssignedAgentName="@(ticket.AssignedAgent?.DisplayName)" Assigned="HandleAssigned" />
+                                }
+                                else
+                                {
+                                    @(ticket.AssignedAgent?.DisplayName ?? "Nieprzypisany")
+                                }
+                            </dd>
                         </div>
                         <div>
                             <dt>Data utworzenia</dt>

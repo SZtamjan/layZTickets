@@ -5,55 +5,72 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ILogger<AgentAssignment> Logger
 
-<section class="side-card agent-picker">
-    <h2>Przypisz agenta</h2>
-    <label for="agent-search">Imię, nazwisko lub login</label>
-    <input id="agent-search" class="desk-input" type="text" role="combobox" autocomplete="off"
-           data-agent-search aria-autocomplete="list" aria-expanded="@isOpen.ToString().ToLowerInvariant()"
-           aria-controls="agent-results" aria-activedescendant="@ActiveOptionId" aria-describedby="agent-search-help"
-           @bind="searchText" @bind:event="oninput" @bind:after="ScheduleSearchAsync"
-           @onkeydown="HandleKeyAsync" @onblur="CloseSuggestions"
-           disabled="@isAssigning" />
-    <small id="agent-search-help">Minimum 3 znaki. Wyniki po sekundzie przerwy w pisaniu.</small>
-    @if (isSearching)
+<div class="agent-picker">
+    @if (!isEditing)
     {
-        <p role="status">Wyszukiwanie...</p>
+        <button @ref="assigneeButton" class="assignee-button" type="button" @onclick="BeginEdit"
+                aria-label="@($"Zmień przypisanego agenta. Obecnie: {AssignedAgentName ?? "Nieprzypisany"}")"
+                title="Zmień przypisanego agenta" aria-haspopup="listbox" aria-expanded="false">
+            <span>@(AssignedAgentName ?? "Nieprzypisany")</span>
+            <span class="material-symbols-outlined edit-icon" aria-hidden="true">edit</span>
+        </button>
     }
-    @if (isOpen)
+    else
     {
-        <div class="agent-suggestions">
-            <ul id="agent-results" role="listbox" aria-label="Agenci pasujący do kategorii">
-                @for (var index = 0; index < suggestions.Count; index++)
-                {
-                    var option = suggestions[index];
-                    var selected = index == activeIndex;
-                    <li role="option" id="@($"agent-option-{index}")" aria-selected="@selected.ToString().ToLowerInvariant()">
-                        <button type="button" tabindex="-1" class="@(selected ? "active" : null)"
-                                @onpointerdown:preventDefault @onpointerdown="() => AssignAgentAsync(option.Id)"
-                                @onclick="() => AssignAgentAsync(option.Id)">
-                            <strong>@option.Name</strong><span>@option.Login</span>
-                        </button>
-                    </li>
-                }
-            </ul>
-            @if (suggestions.Count == 0)
+        <div class="agent-input-shell">
+            <input id="agent-search" class="desk-input" type="text" role="combobox" autocomplete="off"
+                   @ref="searchInput" aria-label="Wyszukaj przypisanego agenta" placeholder="Imię, nazwisko lub login"
+                   data-agent-search aria-autocomplete="list" aria-expanded="@isOpen.ToString().ToLowerInvariant()"
+                   aria-controls="agent-results" aria-activedescendant="@ActiveOptionId" aria-describedby="agent-search-help"
+                   @bind="searchText" @bind:event="oninput" @bind:after="ScheduleSearchAsync"
+                   @onkeydown="HandleKeyAsync" @onblur="CancelEdit" disabled="@isAssigning" />
+            @if (isOpen)
             {
-                <p>Brak pasujących agentów w tej kategorii.</p>
+                <div class="agent-suggestions">
+                    <ul id="agent-results" role="listbox" aria-label="Agenci pasujący do kategorii">
+                        @for (var index = 0; index < suggestions.Count; index++)
+                        {
+                            var option = suggestions[index];
+                            var selected = index == activeIndex;
+                            <li role="option" id="@($"agent-option-{index}")" aria-selected="@selected.ToString().ToLowerInvariant()">
+                                <button type="button" tabindex="-1" class="@(selected ? "active" : null)"
+                                        @onpointerdown:preventDefault @onpointerdown="() => AssignAgentAsync(option.Id)"
+                                        @onclick="() => AssignAgentAsync(option.Id)">
+                                    <strong>@option.Name</strong><span>@option.Login</span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                    @if (suggestions.Count == 0)
+                    {
+                        <p>Brak pasujących agentów w tej kategorii.</p>
+                    }
+                </div>
             }
         </div>
-    }
-    @if (!string.IsNullOrWhiteSpace(error))
-    {
-        <p class="comment-error" role="alert">@error</p>
+        <small id="agent-search-help">Wpisz co najmniej 3 znaki. Escape anuluje zmianę.</small>
+        @if (isSearching)
+        {
+            <p role="status">Wyszukiwanie...</p>
+        }
+        @if (isAssigning)
+        {
+            <p role="status">Przypisywanie...</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <p class="comment-error" role="alert">@error</p>
+        }
     }
     @if (!string.IsNullOrWhiteSpace(success))
     {
-        <p role="status">@success</p>
+        <p class="visually-hidden" role="status">@success</p>
     }
-</section>
+</div>
 
 @code {
     [Parameter] public int TicketId { get; set; }
+    [Parameter] public string? AssignedAgentName { get; set; }
     [Parameter] public EventCallback<AssignmentResult> Assigned { get; set; }
 
     public sealed record AgentOption(string Id, string Name, string Login);
@@ -64,17 +81,54 @@
     private bool isOpen;
     private bool isSearching;
     private bool isAssigning;
+    private bool isEditing;
+    private bool focusInput;
+    private bool focusButton;
+    private ElementReference searchInput;
+    private ElementReference assigneeButton;
     private bool disposed;
     private string? error;
     private string? success;
     private CancellationTokenSource? searchCancellation;
     private string? ActiveOptionId => isOpen && activeIndex >= 0 ? $"agent-option-{activeIndex}" : null;
 
+    private void BeginEdit()
+    {
+        if (disposed || isAssigning) return;
+        CloseSuggestions();
+        searchText = string.Empty;
+        error = null; success = null;
+        isEditing = true; focusInput = true; focusButton = false;
+    }
+
+    private void CancelEdit()
+    {
+        if (isAssigning) return;
+        CloseSuggestions();
+        isEditing = false; focusInput = false;
+        searchText = string.Empty; error = null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (disposed) return;
+        if (focusInput && isEditing && !isAssigning)
+        {
+            focusInput = false;
+            await searchInput.FocusAsync();
+        }
+        else if (focusButton && !isEditing)
+        {
+            focusButton = false;
+            await assigneeButton.FocusAsync();
+        }
+    }
+
     private Task ScheduleSearchAsync() => SearchChangedAsync(new ChangeEventArgs { Value = searchText });
 
     private async Task SearchChangedAsync(ChangeEventArgs args)
     {
-        if (isAssigning || disposed) return;
+        if (isAssigning || disposed || !isEditing) return;
         CancelSearch();
         searchText = args.Value?.ToString() ?? string.Empty;
         suggestions.Clear(); activeIndex = -1; isOpen = false; error = null; success = null;
@@ -133,7 +187,10 @@
 
     private async Task HandleKeyAsync(KeyboardEventArgs args)
     {
-        if (args.Key == "Escape") { CloseSuggestions(); return; }
+        if (args.Key == "Escape" && !isAssigning)
+        {
+            CancelEdit(); focusButton = true; return;
+        }
         if (!isOpen || suggestions.Count == 0 || isAssigning) return;
         if (args.Key == "ArrowDown") activeIndex = (activeIndex + 1) % suggestions.Count;
         else if (args.Key == "ArrowUp") activeIndex = (activeIndex - 1 + suggestions.Count) % suggestions.Count;
@@ -170,6 +227,7 @@
             if (disposed || requestedTicketId != TicketId) return;
             await Assigned.InvokeAsync(new AssignmentResult(requestedTicketId, agent, ticket.UpdatedAt));
             searchText = string.Empty; suggestions.Clear(); activeIndex = -1;
+            isEditing = false; focusButton = true;
             success = $"Przypisano: {agent.DisplayName}.";
         }
         catch (Exception exception)
@@ -177,7 +235,11 @@
             Logger.LogError(exception, "Nie udało się przypisać agenta do zgłoszenia {TicketId}.", requestedTicketId);
             error = "Nie udało się przypisać agenta. Spróbuj ponownie.";
         }
-        finally { isAssigning = false; }
+        finally
+        {
+            isAssigning = false;
+            if (isEditing && !disposed) focusInput = true;
+        }
     }
 
     private void CancelSearch()
