@@ -7,18 +7,18 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ILogger<DisplayTickets> Logger
 
-<PageTitle>Wszystkie Zgłoszenia</PageTitle>
+<PageTitle>Zgłoszenia — layZTickets</PageTitle>
 
 <div class="desk-page">
     <header class="desk-page-header">
         <div>
-            <h1>Wszystkie Zgłoszenia</h1>
+            <h1>Zgłoszenia</h1>
             <p>Przeglądaj i zarządzaj najnowszymi zgłoszeniami w systemie.</p>
         </div>
 
         <a class="desk-primary-button" href="CreateTicket">
             <span class="material-symbols-outlined" aria-hidden="true">add</span>
-            Nowe Zgłoszenie
+            Nowe zgłoszenie
         </a>
     </header>
 
@@ -80,13 +80,13 @@
     }
     else
     {
-        <section class="desk-table-card" aria-label="Lista ticketów">
-            <div class="desk-table-scroll">
+        <section class="desk-table-card" aria-label="Lista zgłoszeń">
+            <div class="desk-table-scroll" tabindex="0" role="region" aria-label="Tabela zgłoszeń — przewijanie poziome">
                 <table class="desk-table">
                     <thead>
                         <tr>
                             <th scope="col">ID</th>
-                            <th scope="col">Tytuł Zgłoszenia</th>
+                            <th scope="col">Tytuł zgłoszenia</th>
                             <th scope="col">Status</th>
                             <th scope="col">Priorytet</th>
                             <th scope="col">Zgłaszający</th>

@@ -1,12 +1,12 @@
 <div class="service-sidebar">
     <div class="brand">
-        <h1>ServiceDesk</h1>
-        <p>IT Support System</p>
+        <a class="brand-title" href="/">layZTickets</a>
+        <p>System zgłoszeń IT</p>
     </div>
 
-    <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+    <input type="checkbox" aria-label="Menu nawigacji" aria-controls="main-navigation" class="navbar-toggler" />
 
-    <nav class="nav-scrollable">
+    <nav id="main-navigation" class="nav-scrollable" aria-label="Nawigacja główna">
         <AuthorizeView Roles="Admin,Agent">
             <NavLink class="nav-link" href="dashboard">
                 <span class="material-symbols-outlined" aria-hidden="true">dashboard</span>
@@ -24,12 +24,12 @@
 
         <NavLink class="nav-link" href="DisplayTickets">
             <span class="material-symbols-outlined" aria-hidden="true">view_list</span>
-            <span>Wszystkie Zgłoszenia</span>
+            <span>Zgłoszenia</span>
         </NavLink>
 
         <NavLink class="nav-link" href="CreateTicket">
             <span class="material-symbols-outlined" aria-hidden="true">add_circle</span>
-            <span>Nowe Zgłoszenie</span>
+            <span>Nowe zgłoszenie</span>
         </NavLink>
     </nav>
 

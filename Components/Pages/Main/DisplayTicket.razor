@@ -9,7 +9,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ILogger<DisplayTicket> Logger
 
-<PageTitle>Ticket</PageTitle>
+<PageTitle>Zgłoszenie — layZTickets</PageTitle>
 
 <div class="ticket-detail-shell">
     @if (!string.IsNullOrWhiteSpace(errorMessage))
@@ -20,12 +20,12 @@
     }
     else if (isLoading)
     {
-        <p role="status" class="desk-muted">Ładowanie ticketu...</p>
+        <p role="status" class="desk-muted">Ładowanie zgłoszenia...</p>
     }
     else if (ticket is null)
     {
         <div class="desk-empty">
-            <h1>Nie znaleziono ticketu</h1>
+            <h1>Nie znaleziono zgłoszenia</h1>
             <p>Wybrane zgłoszenie nie istnieje albo nie masz do niego dostępu.</p>
             <a class="desk-primary-button mt-3" href="DisplayTickets">Wróć do listy</a>
         </div>
@@ -40,7 +40,7 @@
                         <span class="material-symbols-outlined" aria-hidden="true">fiber_manual_record</span>
                         @if (canChangeStatus)
                         {
-                            <InputSelect id="ticket-status" class="desk-input" @bind-Value:get="ticket.Status" @bind-Value:set="ChangeStatus" disabled="@isUpdating">
+                            <InputSelect id="ticket-status" aria-label="Status zgłoszenia" class="desk-input" @bind-Value:get="ticket.Status" @bind-Value:set="ChangeStatus" disabled="@isUpdating">
                                 <option value="@TicketStatus.New">Nowe</option>
                                 <option value="@TicketStatus.InProgress">W trakcie</option>
                                 <option value="@TicketStatus.Pending">Oczekujące</option>
@@ -54,7 +54,7 @@
                     </span>
                     <span class="detail-chip">
                         <span class="material-symbols-outlined" aria-hidden="true">priority_high</span>
-                        <InputSelect id="ticket-priority" class="desk-input" @bind-Value:get="ticket.Priority" @bind-Value:set="ChangePriority" disabled="@(isUpdating || !canChangePriority)">
+                        <InputSelect id="ticket-priority" aria-label="Priorytet zgłoszenia" class="desk-input" @bind-Value:get="ticket.Priority" @bind-Value:set="ChangePriority" disabled="@(isUpdating || !canChangePriority)">
                             <option value="@TicketPriority.Low">Niski</option>
                             <option value="@TicketPriority.Normal">Normalny</option>
                             <option value="@TicketPriority.High">Wysoki</option>
@@ -78,7 +78,7 @@
         </section>
 
         <div class="ticket-detail-grid">
-            <main class="ticket-conversation">
+            <div class="ticket-conversation">
                 <section class="ticket-message-card">
                     <div class="message-author">
                         <div class="message-avatar">@GetInitials(ticket.CreatedByUser.DisplayName)</div>
@@ -125,7 +125,8 @@
 
                     @if (canReply)
                     {
-                        <textarea class="reply-textarea" @bind="commentContent" @bind:event="oninput" disabled="@isAddingComment" placeholder="@(canReadInternal ? "Wpisz odpowiedź lub notatkę..." : "Wpisz odpowiedź...")"></textarea>
+                        <label class="visually-hidden" for="comment-content">Treść odpowiedzi lub notatki</label>
+                        <textarea id="comment-content" class="reply-textarea" @bind="commentContent" @bind:event="oninput" disabled="@isAddingComment" placeholder="@(canReadInternal ? "Wpisz odpowiedź lub notatkę..." : "Wpisz odpowiedź...")"></textarea>
                         <AttachmentPicker @key="replyAttachmentVersion" Selected="selection => replyAttachmentSelection = selection" Disabled="@isAddingComment" />
                         <footer>
                             @if (canReadInternal)
@@ -143,7 +144,7 @@
                         <p class="desk-muted">Nie masz uprawnień do odpowiadania na to zgłoszenie. Agent odpowiada tylko w swojej kategorii, a użytkownik — we własnych zgłoszeniach.</p>
                     }
                 </section>
-            </main>
+            </div>
 
             <aside class="ticket-side-panel">
                 <section class="side-card">
@@ -301,7 +302,7 @@
         }
         catch (Exception exception)
         {
-            errorMessage = $"Nie udało się pobrać ticketu: {exception.Message}";
+            errorMessage = $"Nie udało się pobrać zgłoszenia: {exception.Message}";
         }
         finally
         {
@@ -321,7 +322,7 @@
 
         if (TicketId is null || ticket is null)
         {
-            updateErrorMessage = "Nie wybrano ticketu.";
+            updateErrorMessage = "Nie wybrano zgłoszenia.";
             return;
         }
 
@@ -389,7 +390,7 @@
 
         if (TicketId is null || ticket is null)
         {
-            updateErrorMessage = "Nie wybrano ticketu.";
+            updateErrorMessage = "Nie wybrano zgłoszenia.";
             return;
         }
 
@@ -453,7 +454,7 @@
 
         if (TicketId is null || ticket is null)
         {
-            commentErrorMessage = "Nie można dodać komentarza bez wybranego ticketu.";
+            commentErrorMessage = "Nie można dodać komentarza bez wybranego zgłoszenia.";
             return;
         }
 

@@ -1,169 +1,28 @@
-.app-shell {
-    min-height: 100vh;
-}
-
+.app-shell { min-height: 100vh; }
 .sidebar {
-    background: #f2f3ff;
-    border-right: 1px solid #c2c6d9;
-    bottom: 0;
-    left: 0;
-    position: fixed;
-    top: 0;
-    width: 280px;
-    z-index: 20;
+    background: #f2f3ff; border-right: 1px solid #c2c6d9;
+    bottom: 0; left: 0; position: fixed; top: 0; width: 280px; z-index: 20;
+    overflow-y: auto;
 }
-
-.app-main {
-    margin-left: 280px;
-    min-height: 100vh;
-}
-
+.app-main { margin-left: 280px; min-height: 100vh; min-width: 0; }
 .top-app-bar {
-    align-items: center;
-    background: #faf8ff;
-    border-bottom: 1px solid #c2c6d9;
-    display: flex;
-    height: 64px;
-    justify-content: space-between;
-    padding: 0 16px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+    align-items: center; background: #faf8ff; border-bottom: 1px solid #c2c6d9;
+    display: flex; height: 64px; padding: 0 24px; position: sticky; top: 0; z-index: 10;
 }
-
-.top-search {
-    align-items: center;
-    background: #f2f3ff;
-    border-radius: 999px;
-    display: flex;
-    gap: 8px;
-    max-width: 440px;
-    padding: 0 14px;
-    width: 45%;
-}
-
-.top-search .material-symbols-outlined {
-    color: #424656;
-    font-size: 22px;
-}
-
-.top-search input {
-    background: transparent;
-    border: 0;
-    color: #191b24;
-    min-width: 0;
-    outline: 0;
-    padding: 10px 0;
-    width: 100%;
-}
-
-.top-search:focus-within {
-    box-shadow: 0 0 0 3px rgba(0, 76, 202, 0.16);
-}
-
-.top-actions {
-    align-items: center;
-    display: flex;
-    gap: 12px;
-}
-
-.top-actions h2 {
-    color: #191b24;
-    font-size: 20px;
-    font-weight: 600;
-    line-height: 28px;
-    margin: 0 8px 0 0;
-}
-
-.icon-button {
-    align-items: center;
-    background: transparent;
-    border: 0;
-    border-radius: 999px;
-    color: #424656;
-    display: inline-flex;
-    height: 40px;
-    justify-content: center;
-    transition: background-color 0.15s ease, transform 0.15s ease;
-    width: 40px;
-}
-
-.icon-button:hover {
-    background: #f2f3ff;
-}
-
-.icon-button:active {
-    transform: scale(0.95);
-}
-
-.user-avatar {
-    align-items: center;
-    background: #d0e1fb;
-    border: 1px solid #c2c6d9;
-    border-radius: 999px;
-    color: #0b1c30;
-    display: flex;
-    font-size: 13px;
-    font-weight: 700;
-    height: 40px;
-    justify-content: center;
-    width: 40px;
-}
-
-.content {
-    background: #faf8ff;
-    min-height: calc(100vh - 64px);
-    padding: 24px;
-}
-
+.app-title { color: #191b24; font-size: 20px; font-weight: 600; }
+.content { background: #faf8ff; min-height: calc(100vh - 64px); padding: 24px; }
+.skip-link { position: fixed; left: 16px; top: -100px; z-index: 100; background: white; padding: 12px; }
+.skip-link:focus { top: 8px; }
 @media (max-width: 760px) {
-    .sidebar {
-        position: sticky;
-        width: 100%;
-    }
-
-    .app-main {
-        margin-left: 0;
-    }
-
-    .top-app-bar {
-        align-items: stretch;
-        flex-direction: column;
-        gap: 10px;
-        height: auto;
-        padding: 12px 16px;
-    }
-
-    .top-search {
-        max-width: none;
-        width: 100%;
-    }
-
-    .top-actions {
-        justify-content: space-between;
-    }
-
-    .top-actions h2 {
-        font-size: 16px;
-    }
+    .sidebar { position: relative; width: 100%; }
+    .app-main { margin-left: 0; }
 }
-
 #blazor-error-ui {
-    background: #ffdad6;
-    border-top: 1px solid #ba1a1a;
-    bottom: 0;
-    color: #93000a;
-    display: none;
-    left: 0;
-    padding: 0.75rem 1.25rem;
-    position: fixed;
-    width: 100%;
-    z-index: 1000;
+    background: #ffdad6; border-top: 1px solid #ba1a1a; bottom: 0; color: #93000a;
+    display: none; left: 0; padding: 12px 52px 12px 20px; position: fixed;
+    width: 100%; z-index: 1000; overflow-wrap: anywhere;
 }
-
 #blazor-error-ui .dismiss {
-    cursor: pointer;
-    position: absolute;
-    right: 0.75rem;
-    top: 0.5rem;
+    background: transparent; border: 0; color: inherit; cursor: pointer; font-size: 24px;
+    position: absolute; right: 8px; top: 4px; width: 36px; height: 36px;
 }

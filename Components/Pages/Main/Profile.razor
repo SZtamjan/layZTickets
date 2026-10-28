@@ -1,6 +1,77 @@
 ﻿@page "/profile"
 
-<PageTitle>Mój profil</PageTitle>
+@using layZTickets.Data
+@using layZTickets.DataSets
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDbContext> DbContextFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ILogger<Profile> Logger
 
-<h1>Mój profil</h1>
-<p>W tym miejscu pojawią się ustawienia konta.</p>
+<PageTitle>Mój profil — layZTickets</PageTitle>
+
+<div class="desk-page">
+    <header class="desk-page-header">
+        <div><h1>Mój profil</h1><p>Dane Twojego konta w layZTickets.</p></div>
+    </header>
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+        <a class="desk-primary-button" href="/profile">Spróbuj ponownie</a>
+    }
+    else if (profile is null)
+    {
+        <div class="desk-empty">
+            <h2>Nie znaleziono konta</h2>
+            <p>Konto nie jest już dostępne. Zaloguj się ponownie.</p>
+            <a class="desk-primary-button mt-3" href="/login">Przejdź do logowania</a>
+        </div>
+    }
+    else
+    {
+        <section class="desk-card profile-card" aria-label="Dane konta">
+            <dl>
+                <div><dt>Imię</dt><dd>@DisplayValue(profile.FirstName)</dd></div>
+                <div><dt>Nazwisko</dt><dd>@DisplayValue(profile.LastName)</dd></div>
+                <div><dt>Login</dt><dd>@DisplayValue(profile.Login)</dd></div>
+                <div><dt>Rola</dt><dd>@profile.Role</dd></div>
+                @if (profile.AgentCategory is not null)
+                {
+                    <div><dt>Kategoria agenta</dt><dd>@profile.AgentCategory</dd></div>
+                }
+            </dl>
+        </section>
+    }
+</div>
+
+@code {
+    private ProfileData? profile;
+    private string? errorMessage;
+    private sealed record ProfileData(string FirstName, string LastName, string? Login, string Role, string? AgentCategory);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+            var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var actor = await TicketAccess.GetActorAsync(db, authentication.User);
+            if (actor is null) return;
+            // Model strony zawiera wyłącznie dane do wyświetlenia, bez danych uwierzytelniania.
+            profile = new(actor.Account.FirstName, actor.Account.LastName, actor.Account.UserName,
+                actor.IsAdmin ? "Administrator" : actor.IsAgent ? "Agent" : "Użytkownik",
+                actor.IsAgent ? CategoryName(actor.Account.AgentCategory) : null);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Nie udało się pobrać danych własnego profilu.");
+            errorMessage = "Nie udało się pobrać danych konta. Spróbuj ponownie.";
+        }
+    }
+
+    private static string DisplayValue(string? value) => string.IsNullOrWhiteSpace(value) ? "Nie podano" : value;
+    private static string CategoryName(TicketCategory? category) => category switch
+    {
+        TicketCategory.Hardware => "Sprzęt", TicketCategory.Software => "Oprogramowanie",
+        TicketCategory.Network => "Sieć", TicketCategory.Other => "Inne", _ => "Brak kategorii"
+    };
+}

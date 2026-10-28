@@ -1,4 +1,4 @@
-﻿@page "/admin"
+@page "/admin"
 @attribute [Authorize(Roles = "Admin")]
 @using layZTickets.Data
 @using layZTickets.DataSets
@@ -10,7 +10,7 @@
 @inject NavigationManager Navigation
 @inject ILogger<AdminPanel> Logger
 
-<PageTitle>Panel administratora</PageTitle>
+<PageTitle>Panel administratora — layZTickets</PageTitle>
 
 <h1>Panel administratora</h1>
 
@@ -56,7 +56,7 @@
     }
     else
     {
-        <div class="accounts-table-scroll">
+        <div class="accounts-table-scroll" tabindex="0" role="region" aria-label="Tabela kont — przewijanie poziome">
             <table class="accounts-table">
                 <caption class="visually-hidden">Lista kont: imię, nazwisko, login, rola i kategoria.</caption>
                 <thead>

@@ -11,7 +11,9 @@
     padding: 0 16px;
 }
 
-.brand h1 {
+.brand-title {
+    display: block;
+    text-decoration: none;
     color: #004cca;
     font-size: 24px;
     font-weight: 700;
@@ -197,3 +199,8 @@
         display: flex;
     }
 }
+
+.brand, .sidebar-user > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.service-sidebar { min-height: 100%; height: auto; }
+.user-menu { padding-top: 16px; }
+.navbar-toggler:focus-visible { outline: 3px solid #004cca; outline-offset: 3px; }

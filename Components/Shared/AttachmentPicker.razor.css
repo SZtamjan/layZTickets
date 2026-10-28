@@ -12,7 +12,9 @@ label {
     margin-bottom: 8px;
 }
 
-input {
+.attachment-picker ::deep input {
+    min-width: 0;
+    width: 100%;
     max-width: 100%;
     font-size: 13px;
 }

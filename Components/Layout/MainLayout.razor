@@ -1,5 +1,7 @@
 @inherits LayoutComponentBase
+@inject NavigationManager Navigation
 
+<a class="skip-link" href="@(Navigation.Uri.Split('#')[0] + "#main-content")" data-enhance-nav="false">Przejdź do treści</a>
 <div class="app-shell">
     <aside class="sidebar">
         <NavMenu />
@@ -7,30 +9,17 @@
 
     <main class="app-main">
         <header class="top-app-bar">
-            <div class="top-search">
-                <span class="material-symbols-outlined" aria-hidden="true">search</span>
-                <input type="search" placeholder="Szukaj zgłoszeń, osób, tematów..." />
-            </div>
-
-            <div class="top-actions">
-                <h2>HelpDesk Portal</h2>
-                <button class="icon-button" type="button" title="Powiadomienia">
-                    <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
-                </button>
-                <button class="icon-button" type="button" title="Ustawienia">
-                    <span class="material-symbols-outlined" aria-hidden="true">settings</span>
-                </button>
-            </div>
+            <span class="app-title">layZTickets</span>
         </header>
 
-        <article class="content">
+        <article id="main-content" class="content" tabindex="-1">
             @Body
         </article>
     </main>
 </div>
 
-<div id="blazor-error-ui">
-    An unhandled error has occurred.
-    <a href="" class="reload">Reload</a>
-    <a class="dismiss">x</a>
+<div id="blazor-error-ui" role="alert">
+    Wystąpił problem z aplikacją.
+    <a href="" class="reload">Odśwież stronę</a>
+    <button type="button" class="dismiss" aria-label="Zamknij komunikat błędu">×</button>
 </div>

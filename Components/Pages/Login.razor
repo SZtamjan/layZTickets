@@ -6,7 +6,7 @@
 @inject NavigationManager Navigation
 @inject ILogger<Login> Logger
 
-<PageTitle>Logowanie</PageTitle>
+<PageTitle>Logowanie — layZTickets</PageTitle>
 
 <h1>Zaloguj się do layZTickets</h1>
 
@@ -18,9 +18,15 @@
 }
 
 <EditForm Model="Input" OnSubmit="LoginAttempt"	FormName="login" method="post">
-	<InputText @bind-Value="Input.Email" placeholder="Wpisz login"></InputText>
-	<InputText @bind-Value="Input.Password" placeholder="Wpisz hasło" type="password"></InputText>
-	<button type="submit">Zaloguj</button>
+    <div class="login-field">
+        <label for="login-name">Login</label>
+        <InputText id="login-name" class="desk-input" @bind-Value="Input.Email" autocomplete="username" />
+    </div>
+    <div class="login-field">
+        <label for="login-password">Hasło</label>
+        <InputText id="login-password" class="desk-input" @bind-Value="Input.Password" type="password" autocomplete="current-password" />
+    </div>
+    <button class="desk-primary-button" type="submit">Zaloguj</button>
 </EditForm>
 
 @code {
@@ -41,7 +47,7 @@
 
 		if (string.IsNullOrWhiteSpace(Input.Email) || string.IsNullOrWhiteSpace(Input.Password))
 		{
-			errorMessage = $"Upewnij się, że podałeś wszystkie dane";
+			errorMessage = "Upewnij się, że podano login i hasło.";
 			return;
 		}
 
@@ -70,9 +76,6 @@
 		{
 			Logger.LogError(e, "Błąd podczas logowania.");
 			errorMessage = "Wystąpił problem z logowaniem. Spróbuj ponownie później.";
-		}
-		finally
-		{
 		}
 	}
 }

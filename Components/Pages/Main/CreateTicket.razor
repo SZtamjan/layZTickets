@@ -8,7 +8,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ILogger<CreateTicket> Logger
 
-<PageTitle>Nowe Zgłoszenie</PageTitle>
+<PageTitle>Nowe zgłoszenie — layZTickets</PageTitle>
 
 <div class="desk-page">
     <header class="desk-page-header create-header">
@@ -50,7 +50,7 @@
                         <InputTextArea id="ticket-description" class="desk-input desk-textarea" @bind-Value="ticketDraft.Description" placeholder="Podaj szczegóły problemu, komunikaty o błędach oraz kroki, które doprowadziły do usterki..." />
                         @if (submitted && string.IsNullOrWhiteSpace(ticketDraft.Description))
                         {
-                            <div class="validation-message">Opisz, czego dotyczy ticket.</div>
+                            <div class="validation-message">Opisz, czego dotyczy zgłoszenie.</div>
                         }
                     </div>
 
@@ -95,7 +95,7 @@
                             <option value="@TicketPriority.Low">Niski (Informacyjne)</option>
                             <option value="@TicketPriority.Normal">Normalny (Standardowe zgłoszenie)</option>
                             <option value="@TicketPriority.High">Wysoki (Krytyczna awaria)</option>
-                            <option value="@TicketPriority.Highest">Pilny (Praca wstrzymana)</option>
+                            <option value="@TicketPriority.Highest">Najwyższy (Praca wstrzymana)</option>
                         </InputSelect>
                     </div>
 
@@ -112,7 +112,7 @@
 
             <section class="info-card">
                 <span class="material-symbols-outlined" aria-hidden="true">info</span>
-                <p>Twoje zgłoszenie zostanie zapisane w bazie i pojawi się na liście najnowszych ticketów.</p>
+                <p>Twoje zgłoszenie zostanie zapisane w bazie i pojawi się na liście najnowszych zgłoszeń.</p>
             </section>
         </aside>
     </EditForm>
@@ -200,7 +200,7 @@
             ticket.Attachments = AttachmentUpload.CreateEntities(files, userId);
             await dbContext.SaveChangesAsync();
 
-            successMessage = $"Ticket {ticket.TicketNumber} został utworzony.";
+            successMessage = $"Zgłoszenie {ticket.TicketNumber} zostało utworzone.";
             ticketDraft = CreateEmptyTicket();
             submitted = false;
             attachmentSelection = AttachmentSelection.Empty;

@@ -1,0 +1,8 @@
+.profile-card { max-width: 680px; }
+dl { margin: 0; display: grid; gap: 20px; }
+dl > div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; }
+dt { color: var(--desk-muted); font-weight: 400; }
+dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+@media (max-width: 480px) {
+    dl > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}

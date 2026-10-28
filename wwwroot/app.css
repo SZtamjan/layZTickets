@@ -293,7 +293,6 @@ a,
     font-size: 15px;
 }
 
-.status-chip,
 .detail-chip {
     align-items: center;
     border-radius: 999px;
@@ -302,45 +301,6 @@ a,
     font-weight: 700;
     gap: 4px;
     padding: 4px 10px;
-}
-
-.status-chip {
-    background: var(--desk-secondary-soft);
-    color: #54647a;
-}
-
-.status-new {
-    background: var(--desk-error-soft);
-    color: #93000a;
-}
-
-.status-progress {
-    background: var(--desk-secondary-soft);
-    color: #54647a;
-}
-
-.priority-chip {
-    align-items: center;
-    color: var(--desk-muted);
-    display: inline-flex;
-    font-weight: 600;
-    gap: 8px;
-}
-
-.priority-chip span {
-    background: var(--desk-muted-2);
-    border-radius: 999px;
-    display: inline-block;
-    height: 8px;
-    width: 8px;
-}
-
-.priority-high {
-    color: var(--desk-error);
-}
-
-.priority-high span {
-    background: var(--desk-error);
 }
 
 .agent-cell {
@@ -364,15 +324,6 @@ a,
 
 .agent-cell strong {
     font-weight: 400;
-}
-
-.desk-icon-link {
-    color: var(--desk-muted);
-    text-decoration: none;
-}
-
-.desk-icon-link:hover {
-    color: var(--desk-primary);
 }
 
 .desk-table-footer {
@@ -429,8 +380,7 @@ a,
     gap: 24px;
 }
 
-.form-stack label,
-.attachment-drop > label {
+.form-stack label {
     color: var(--desk-text);
     display: block;
     font-weight: 700;
@@ -440,36 +390,6 @@ a,
 .desk-textarea {
     min-height: 180px;
     resize: vertical;
-}
-
-.attachment-drop div {
-    align-items: center;
-    border: 2px dashed var(--desk-border);
-    border-radius: 8px;
-    color: var(--desk-muted);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    justify-content: center;
-    min-height: 180px;
-    padding: 28px;
-    text-align: center;
-    transition: background-color 0.15s ease, border-color 0.15s ease;
-}
-
-.attachment-drop div:hover {
-    background: var(--desk-surface-low);
-    border-color: var(--desk-primary);
-}
-
-.attachment-drop .material-symbols-outlined {
-    color: var(--desk-primary);
-    font-size: 42px;
-}
-
-.attachment-drop p {
-    font-size: 12px;
-    margin: 0;
 }
 
 .category-list {
@@ -555,16 +475,6 @@ a,
     background: var(--desk-surface-mid);
     color: var(--desk-muted);
     text-transform: uppercase;
-}
-
-.detail-status {
-    background: var(--desk-primary-strong);
-    color: #ffffff;
-}
-
-.detail-priority {
-    background: var(--desk-error-soft);
-    color: #93000a;
 }
 
 .detail-chip .material-symbols-outlined {
@@ -704,23 +614,6 @@ a,
     width: 100%;
 }
 
-.reply-author {
-    border-bottom: 1px solid var(--desk-border);
-    padding: 12px 16px;
-}
-
-.reply-author label {
-    color: var(--desk-muted);
-    display: block;
-    font-size: 12px;
-    font-weight: 700;
-    margin-bottom: 6px;
-}
-
-.reply-author .desk-input {
-    max-width: 320px;
-}
-
 .comment-error {
     background: var(--desk-error-soft);
     border-bottom: 1px solid var(--desk-error);
@@ -771,12 +664,6 @@ a,
     padding: 16px;
 }
 
-.side-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
 .side-card {
     background: var(--desk-surface);
     border: 1px solid var(--desk-border);
@@ -823,18 +710,6 @@ a,
     padding: 12px;
 }
 
-.attachments-card button {
-    background: transparent;
-    border: 2px dashed var(--desk-border);
-    border-radius: 8px;
-    color: var(--desk-muted);
-    font-size: 12px;
-    font-weight: 700;
-    margin-top: 12px;
-    padding: 10px;
-    width: 100%;
-}
-
 .blazor-error-boundary {
     background: var(--desk-error-soft);
     border: 1px solid var(--desk-error);
@@ -844,7 +719,7 @@ a,
 }
 
 .blazor-error-boundary::after {
-    content: "An error has occurred.";
+    content: "Wystąpił błąd aplikacji.";
 }
 
 @media (max-width: 980px) {
@@ -886,3 +761,29 @@ a,
         margin-left: 0;
     }
 }
+
+/* Keyboard focus and long content must remain visible in every layout. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 3px solid var(--desk-primary); outline-offset: 3px;
+}
+.reply-textarea:focus-visible { outline-offset: -3px; }
+.desk-page, .desk-card, .create-main-column, .create-side-column,
+.ticket-hero > div, .message-author > div, .ticket-conversation, .ticket-side-panel { min-width: 0; }
+.desk-page, .ticket-detail-shell, .alert { overflow-wrap: anywhere; }
+.desk-input, select { min-width: 0; max-width: 100%; }
+.desk-table { table-layout: fixed; }
+.desk-table th:first-child { width: 110px; }
+.desk-table th:nth-child(2) { width: 280px; }
+.desk-table td { overflow-wrap: anywhere; }
+.agent-cell span { flex: 0 0 28px; }
+.message-avatar { flex: 0 0 40px; }
+.reply-box footer { flex-wrap: wrap; }
+@media (max-width: 480px) {
+    .ticket-conversation { padding: 16px; }
+    .ticket-message-card { padding: 16px; }
+    .desk-card { padding: 16px; }
+    .desk-page-header h1 { font-size: 26px; }
+}
+
+.ticket-hero > div:first-child { flex: 1; }
+.ticket-hero-actions { flex-shrink: 0; }
