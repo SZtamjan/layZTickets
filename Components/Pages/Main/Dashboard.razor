@@ -1,5 +1,6 @@
 @page "/dashboard"
 @rendermode InteractiveServer
+<layZTickets.Components.Shared.SessionGuard />
 @attribute [Authorize(Roles = "Admin,Agent")]
 @using layZTickets.Data
 @using layZTickets.DataSets

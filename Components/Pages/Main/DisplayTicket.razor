@@ -1,6 +1,7 @@
 @page "/DisplayTicket"
 @page "/DisplayTicket/{TicketId:int}"
 @rendermode InteractiveServer
+<layZTickets.Components.Shared.SessionGuard />
 @using Microsoft.EntityFrameworkCore
 @using layZTickets.Data
 @using layZTickets.DataSets
@@ -132,7 +133,7 @@
                     @if (canReply)
                     {
                         <label class="visually-hidden" for="comment-content">Treść odpowiedzi lub notatki</label>
-                        <textarea id="comment-content" class="reply-textarea" @bind="commentContent" @bind:event="oninput" disabled="@isAddingComment" placeholder="@(canReadInternal ? "Wpisz odpowiedź lub notatkę..." : "Wpisz odpowiedź...")"></textarea>
+                        <textarea id="comment-content" class="reply-textarea" @bind="commentContent" @bind:event="oninput" maxlength="@TicketInput.MaxTextLength" disabled="@isAddingComment" placeholder="@(canReadInternal ? "Wpisz odpowiedź lub notatkę..." : "Wpisz odpowiedź...")"></textarea>
                         <AttachmentPicker @key="replyAttachmentVersion" Selected="selection => replyAttachmentSelection = selection" Disabled="@isAddingComment" />
                         <footer>
                             @if (canReadInternal)
@@ -488,6 +489,12 @@
         if (string.IsNullOrWhiteSpace(commentContent) && replyAttachmentSelection.Files.Count == 0)
         {
             commentErrorMessage = "Wpisz treść komentarza lub wybierz załącznik.";
+            return;
+        }
+
+        if (commentContent.Length > TicketInput.MaxTextLength)
+        {
+            commentErrorMessage = "Odpowiedź może mieć najwyżej 10000 znaków.";
             return;
         }
 

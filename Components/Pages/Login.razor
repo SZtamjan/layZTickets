@@ -1,5 +1,6 @@
 ﻿@page "/login"
 @layout layZTickets.Components.Layout.LoginLayout
+@attribute [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("login")]
 @using Microsoft.AspNetCore.Identity
 @using layZTickets.Data
 @inject SignInManager<ApplicationUser> SignInManager
@@ -63,13 +64,9 @@
 			{
 				Navigation.NavigateTo("/", forceLoad: true);
 			}
-			else if (result.IsLockedOut)
-			{
-				errorMessage = $"Konto tymczasowo zablokowane";
-			}
 			else
 			{
-				errorMessage = "Nie udało się zalogować. Sprawdź dane.";
+				errorMessage = "Nie udało się zalogować. Sprawdź dane lub spróbuj ponownie później.";
 			}
 		}
 		catch (Exception e) when (e is not NavigationException)

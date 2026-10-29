@@ -1,5 +1,6 @@
 @page "/CreateTicket"
 @rendermode InteractiveServer
+<layZTickets.Components.Shared.SessionGuard />
 @using Microsoft.EntityFrameworkCore
 @using layZTickets.Data
 @using layZTickets.DataSets
@@ -32,26 +33,21 @@
         </div>
     }
 
-    <EditForm Model="ticketDraft" OnSubmit="CreateTicketAsync" FormName="create-ticket-form" class="create-ticket-grid">
+    <EditForm Model="ticketDraft" OnValidSubmit="CreateTicketAsync" FormName="create-ticket-form" class="create-ticket-grid">
+        <DataAnnotationsValidator />
         <div class="create-main-column">
             <section class="desk-card">
                 <div class="form-stack">
                     <div>
                         <label for="ticket-title">Tytuł zgłoszenia</label>
-                        <InputText id="ticket-title" class="desk-input" @bind-Value="ticketDraft.Title" placeholder="Np. Problem z logowaniem do systemu VPN" />
-                        @if (submitted && string.IsNullOrWhiteSpace(ticketDraft.Title))
-                        {
-                            <div class="validation-message">Podaj tytuł zgłoszenia.</div>
-                        }
+                        <InputText id="ticket-title" class="desk-input" @bind-Value="ticketDraft.Title" maxlength="@TicketInput.MaxTitleLength" disabled="@isSaving" placeholder="Np. Problem z logowaniem do systemu VPN" />
+                        <ValidationMessage For="() => ticketDraft.Title" />
                     </div>
 
                     <div>
                         <label for="ticket-description">Opis problemu</label>
-                        <InputTextArea id="ticket-description" class="desk-input desk-textarea" @bind-Value="ticketDraft.Description" placeholder="Podaj szczegóły problemu, komunikaty o błędach oraz kroki, które doprowadziły do usterki..." />
-                        @if (submitted && string.IsNullOrWhiteSpace(ticketDraft.Description))
-                        {
-                            <div class="validation-message">Opisz, czego dotyczy zgłoszenie.</div>
-                        }
+                        <InputTextArea id="ticket-description" class="desk-input desk-textarea" @bind-Value="ticketDraft.Description" maxlength="@TicketInput.MaxTextLength" disabled="@isSaving" placeholder="Podaj szczegóły problemu, komunikaty o błędach oraz kroki, które doprowadziły do usterki..." />
+                        <ValidationMessage For="() => ticketDraft.Description" />
                     </div>
 
                 </div>
@@ -70,33 +66,35 @@
                         <InputRadioGroup @bind-Value="ticketDraft.Category">
                             <div class="category-list">
                                 <label>
-                                    <InputRadio Value="TicketCategory.Hardware" />
+                                    <InputRadio Value="TicketCategory.Hardware" disabled="@isSaving" />
                                     Sprzęt
                                 </label>
                                 <label>
-                                    <InputRadio Value="TicketCategory.Software" />
+                                    <InputRadio Value="TicketCategory.Software" disabled="@isSaving" />
                                     Oprogramowanie
                                 </label>
                                 <label>
-                                    <InputRadio Value="TicketCategory.Network" />
+                                    <InputRadio Value="TicketCategory.Network" disabled="@isSaving" />
                                     Sieć
                                 </label>
                                 <label>
-                                    <InputRadio Value="TicketCategory.Other" />
+                                    <InputRadio Value="TicketCategory.Other" disabled="@isSaving" />
                                     Inne
                                 </label>
                             </div>
                         </InputRadioGroup>
+                        <ValidationMessage For="() => ticketDraft.Category" />
                     </div>
 
                     <div>
                         <label for="ticket-priority">Priorytet</label>
-                        <InputSelect id="ticket-priority" class="desk-input" @bind-Value="ticketDraft.Priority">
+                        <InputSelect id="ticket-priority" class="desk-input" @bind-Value="ticketDraft.Priority" disabled="@isSaving">
                             <option value="@TicketPriority.Low">Niski (Informacyjne)</option>
                             <option value="@TicketPriority.Normal">Normalny (Standardowe zgłoszenie)</option>
                             <option value="@TicketPriority.High">Wysoki (Krytyczna awaria)</option>
                             <option value="@TicketPriority.Highest">Najwyższy (Praca wstrzymana)</option>
                         </InputSelect>
+                        <ValidationMessage For="() => ticketDraft.Priority" />
                     </div>
 
                 </div>
@@ -119,8 +117,7 @@
 </div>
 
 @code {
-    private TicketData ticketDraft = CreateEmptyTicket();
-    private bool submitted;
+    private TicketInput ticketDraft = new();
     private bool isSaving;
     private string? successMessage;
     private string? errorMessage;
@@ -134,7 +131,6 @@
             return;
         }
 
-        submitted = true;
         successMessage = null;
         errorMessage = null;
 
@@ -201,8 +197,7 @@
             await dbContext.SaveChangesAsync();
 
             successMessage = $"Zgłoszenie {ticket.TicketNumber} zostało utworzone.";
-            ticketDraft = CreateEmptyTicket();
-            submitted = false;
+            ticketDraft = new();
             attachmentSelection = AttachmentSelection.Empty;
             attachmentVersion++;
         }
@@ -224,15 +219,8 @@
     private bool IsValid()
     {
         return !string.IsNullOrWhiteSpace(ticketDraft.Title)
-            && !string.IsNullOrWhiteSpace(ticketDraft.Description);
-    }
-
-    private static TicketData CreateEmptyTicket()
-    {
-        return new TicketData
-        {
-            Status = TicketStatus.New,
-            Priority = TicketPriority.Normal
-        };
+            && !string.IsNullOrWhiteSpace(ticketDraft.Description)
+            && ticketDraft.Title.Length <= TicketInput.MaxTitleLength
+            && ticketDraft.Description.Length <= TicketInput.MaxTextLength;
     }
 }
