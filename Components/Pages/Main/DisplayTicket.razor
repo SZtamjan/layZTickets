@@ -15,7 +15,13 @@
     @if (!string.IsNullOrWhiteSpace(errorMessage))
     {
         <div class="alert alert-danger" role="alert">
-            @errorMessage
+            <p class="mb-0">@errorMessage</p>
+            @if (canRetryLoad)
+            {
+                <button class="desk-secondary-button mt-3" type="button" @onclick="RetryLoadAsync" disabled="@isLoading">
+                    Spróbuj ponownie
+                </button>
+            }
         </div>
     }
     else if (isLoading)
@@ -223,6 +229,7 @@
 
     private TicketData? ticket;
     private bool isLoading = true;
+    private bool canRetryLoad;
     private bool isUpdating = false;
     private bool isAddingComment;
     private string commentContent = string.Empty;
@@ -264,6 +271,14 @@
             ticketAttachmentVersion++;
             loadedTicketId = TicketId;
         }
+        await LoadTicketAsync();
+    }
+
+    private Task RetryLoadAsync() => isLoading ? Task.CompletedTask : LoadTicketAsync();
+
+    private async Task LoadTicketAsync()
+    {
+        canRetryLoad = false;
         attachments = new();
         canReply = false; canAssign = false; canReadInternal = false;
         canChangeStatus = false; canChangePriority = false;
@@ -302,7 +317,13 @@
         }
         catch (Exception exception)
         {
-            errorMessage = $"Nie udało się pobrać zgłoszenia: {exception.Message}";
+            Logger.LogError(exception, "Nie udało się pobrać zgłoszenia {TicketId}.", TicketId);
+            ticket = null;
+            attachments = new();
+            canReply = false; canAssign = false; canReadInternal = false;
+            canChangeStatus = false; canChangePriority = false;
+            errorMessage = "Nie udało się pobrać zgłoszenia. Spróbuj ponownie.";
+            canRetryLoad = true;
         }
         finally
         {
